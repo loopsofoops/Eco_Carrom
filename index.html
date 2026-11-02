@@ -1,0 +1,4052 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>CARROM 3D // PLOT WARS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&family=JetBrains+Mono:wght@700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+:root {
+  --surface: #fffdf9;
+  --ink: #121216;
+  --ink-muted: #5a5a66;
+  --accent: #ff4500;
+  --cyan: #00e5ff;
+  --magenta: #f72585;
+  --gold: #ffb700;
+  --danger: #ff1744;
+  --border-w: 2.5px;
+  --shadow: 4px 4px 0px #121216;
+  --shadow-sm: 2.5px 2.5px 0px #121216;
+  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  border-radius: 0 !important;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+  width: 100%;
+  max-width: 100vw;
+  height: 100dvh;
+  overflow: hidden;
+  position: fixed;
+  inset: 0;
+  background: #f4ead8;
+  color: var(--ink);
+  font-family: var(--font-sans);
+}
+
+#app {
+  position: relative;
+  width: 100%;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow: hidden;
+}
+
+#stage-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+  z-index: 1;
+}
+
+/* SHARP BRUTALIST TOP BAR */
+.top-bar {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: calc(10px + env(safe-area-inset-top, 0px)) 10px 6px;
+  pointer-events: none;
+}
+
+.score-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  pointer-events: auto;
+  flex-wrap: nowrap;
+}
+
+.player-pill {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 90px;
+  height: 40px;
+  padding: 3px 8px;
+  background: var(--surface);
+  border: var(--border-w) solid var(--ink);
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.12s ease, background-color 0.12s ease;
+}
+
+.player-pill.active {
+  background: var(--gold);
+  transform: translate(-1px, -1px);
+  box-shadow: var(--shadow);
+}
+
+.pill-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 5px;
+}
+
+.owner-swatch {
+  width: 9px;
+  height: 9px;
+  border: 2px solid var(--ink);
+  flex-shrink: 0;
+}
+
+.owner-swatch.p1-color { background: var(--cyan); }
+.owner-swatch.p2-color { background: var(--magenta); }
+
+.player-name {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--ink);
+}
+
+.player-pts {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.player-pts.negative {
+  color: var(--danger);
+}
+
+.wallet-mini {
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  font-weight: 800;
+  color: var(--ink-muted);
+  letter-spacing: 0.01em;
+  margin-top: 1px;
+  white-space: nowrap;
+}
+
+.player-pill.active .wallet-mini {
+  color: var(--ink);
+}
+
+.top-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  pointer-events: auto;
+  flex-shrink: 0;
+}
+
+.buy-top-btn {
+  appearance: none;
+  height: 40px;
+  padding: 0 10px;
+  background: var(--surface);
+  color: var(--ink);
+  border: var(--border-w) solid var(--ink);
+  box-shadow: var(--shadow-sm);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.buy-top-btn.can-afford {
+  background: var(--cyan);
+  color: var(--ink);
+}
+
+.buy-top-btn:disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.buy-top-btn:active {
+  background: var(--ink);
+  color: var(--surface);
+  transform: translate(1px, 1px);
+  box-shadow: 1px 1px 0px var(--ink);
+}
+
+.icon-btn {
+  pointer-events: auto;
+  appearance: none;
+  width: 40px;
+  height: 40px;
+  background: var(--surface);
+  border: var(--border-w) solid var(--ink);
+  box-shadow: var(--shadow-sm);
+  color: var(--ink);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.icon-btn:active,
+.icon-btn.active {
+  background: var(--ink);
+  color: var(--surface);
+  transform: translate(1px, 1px);
+  box-shadow: 1px 1px 0px var(--ink);
+}
+
+/* FLOATING TOAST */
+.toast-pill {
+  position: absolute;
+  top: calc(60px + env(safe-area-inset-top, 0px));
+  left: 50%;
+  transform: translateX(-50%) translateY(-6px);
+  z-index: 12;
+  background: var(--ink);
+  color: var(--surface);
+  border: 2px solid var(--ink);
+  box-shadow: var(--shadow-sm);
+  padding: 5px 14px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.14s ease, transform 0.14s ease;
+  white-space: nowrap;
+}
+
+.toast-pill.visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* JUICY POWER HUD BAR */
+.power-hud {
+  position: absolute;
+  bottom: calc(82px + env(safe-area-inset-bottom, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 12;
+  width: 248px;
+  background: var(--surface);
+  border: var(--border-w) solid var(--ink);
+  box-shadow: var(--shadow);
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+}
+
+.power-hud.visible {
+  opacity: 1;
+}
+
+.power-hud-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.power-bar-outer {
+  width: 100%;
+  height: 12px;
+  background: #e4e2dd;
+  border: 2px solid var(--ink);
+  overflow: hidden;
+  position: relative;
+}
+
+.power-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--accent);
+  transition: background-color 0.08s ease;
+}
+
+/* BOTTOM ERGONOMIC DOCK */
+.bottom-dock {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  padding: 8px 12px calc(14px + env(safe-area-inset-bottom, 0px));
+  pointer-events: none;
+  max-width: 520px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.dock-card {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  background: var(--surface);
+  border: var(--border-w) solid var(--ink);
+  box-shadow: var(--shadow);
+}
+
+/* BASELINE POSITION SLIDER */
+.slider-track {
+  position: relative;
+  flex: 1;
+  height: 40px;
+  background: #ebe6dc;
+  border: 2px solid var(--ink);
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  touch-action: none;
+  cursor: pointer;
+}
+
+.slider-line {
+  width: 100%;
+  height: 4px;
+  background: var(--ink);
+}
+
+.slider-thumb {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 28px;
+  height: 28px;
+  transform: translate(-50%, -50%);
+  background: var(--surface);
+  border: 2.5px solid var(--ink);
+  box-shadow: 2px 2px 0px var(--ink);
+  pointer-events: none;
+}
+
+.slider-thumb::after {
+  content: '';
+  position: absolute;
+  inset: 5px;
+  background: var(--accent);
+  border: 1.5px solid var(--ink);
+}
+
+.slider-thumb.blocked {
+  background: var(--danger);
+}
+
+/* PAN BUTTON & MODE SWITCH BUTTON */
+.pan-btn {
+  appearance: none;
+  height: 40px;
+  padding: 0 11px;
+  background: var(--surface);
+  color: var(--ink);
+  border: 2px solid var(--ink);
+  box-shadow: var(--shadow-sm);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  cursor: pointer;
+}
+
+.pan-btn.active,
+.pan-btn:active {
+  background: var(--cyan);
+  color: var(--ink);
+  transform: translate(1px, 1px);
+  box-shadow: 1px 1px 0px var(--ink);
+}
+
+.mode-switch-btn {
+  appearance: none;
+  height: 40px;
+  min-width: 104px;
+  padding: 0 12px;
+  border: 2px solid var(--ink);
+  background: var(--accent);
+  color: #ffffff;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+}
+
+.mode-switch-btn:active {
+  transform: translate(1px, 1px);
+  box-shadow: 1px 1px 0px var(--ink);
+}
+
+.mode-switch-btn.strike-active {
+  background: var(--ink);
+  color: var(--gold);
+}
+
+.mode-switch-btn:disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+/* SHARP MODALS (SETTINGS, BUY PLOT, & BANKRUPT SELL/FORFEIT) */
+.menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  background: rgba(18, 18, 22, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.14s ease;
+}
+
+.menu-backdrop.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.menu-sheet {
+  width: 100%;
+  max-width: 356px;
+  max-height: 90dvh;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 3px solid var(--ink);
+  box-shadow: 8px 8px 0px var(--ink);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.menu-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 2px solid var(--ink);
+  padding-bottom: 8px;
+}
+
+.menu-title {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+}
+
+.menu-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.menu-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--ink-muted);
+  letter-spacing: 0.06em;
+  display: flex;
+  justify-content: space-between;
+}
+
+.seg-group {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.seg-btn {
+  appearance: none;
+  border: 2px solid var(--ink);
+  height: 36px;
+  background: #ebe6dc;
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.seg-btn.active {
+  background: var(--gold);
+  color: var(--ink);
+  box-shadow: 2px 2px 0px var(--ink);
+}
+
+.menu-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.action-btn {
+  appearance: none;
+  height: 40px;
+  border: 2px solid var(--ink);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-sm);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.action-btn.primary {
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.action-btn.danger-btn {
+  background: var(--danger);
+  color: #ffffff;
+}
+
+.action-btn:disabled {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.action-btn:active {
+  transform: translate(1px, 1px);
+  box-shadow: 1px 1px 0px var(--ink);
+}
+
+/* BUY & SELL PLOT MODAL STYLES */
+.tier-strip {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 5px;
+}
+
+.tier-chip {
+  padding: 5px 4px;
+  border: 2px solid var(--ink);
+  background: #ebe6dc;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 800;
+  text-align: center;
+  opacity: 0.5;
+}
+
+.tier-chip.unlocked {
+  background: var(--gold);
+  opacity: 1;
+  box-shadow: 2px 2px 0px var(--ink);
+}
+
+.tier-chip.done {
+  background: #10b981;
+  color: #ffffff;
+  opacity: 1;
+}
+
+.plot-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.plot-card {
+  appearance: none;
+  padding: 8px;
+  border: 2px solid var(--ink);
+  background: var(--surface);
+  text-align: left;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  box-shadow: 2px 2px 0px var(--ink);
+}
+
+.plot-card.selected {
+  background: var(--gold);
+  transform: translate(-1px, -1px);
+  box-shadow: 3px 3px 0px var(--ink);
+}
+
+.plot-card.owned-p1 {
+  background: var(--cyan);
+  pointer-events: none;
+}
+
+.plot-card.owned-p2 {
+  background: var(--magenta);
+  color: #ffffff;
+  pointer-events: none;
+}
+
+.plot-card-name {
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.plot-card-status {
+  font-size: 9px;
+  font-weight: 700;
+  opacity: 0.85;
+}
+
+.coin-pay-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  background: #ebe6dc;
+  border: 2px solid var(--ink);
+  padding: 8px;
+}
+
+.coin-pay-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.coin-stepper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.step-btn {
+  appearance: none;
+  width: 26px;
+  height: 26px;
+  border: 2px solid var(--ink);
+  background: var(--surface);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.step-btn:active {
+  background: var(--ink);
+  color: var(--surface);
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <canvas id="stage-canvas"></canvas>
+
+  <!-- TOP MINIMALIST SCOREBOARD & BUY BUTTON -->
+  <header class="top-bar">
+    <div class="score-group">
+      <div class="player-pill active" id="pill-p1">
+        <div class="pill-top">
+          <span style="display:flex;align-items:center;gap:4px;">
+            <span class="owner-swatch p1-color"></span>
+            <span class="player-name">P1</span>
+          </span>
+          <span class="player-pts" id="pts-p1">0</span>
+        </div>
+        <div class="wallet-mini" id="wallet-p1">B:0 W:0 Q:0</div>
+      </div>
+
+      <div class="player-pill" id="pill-p2">
+        <div class="pill-top">
+          <span style="display:flex;align-items:center;gap:4px;">
+            <span class="owner-swatch p2-color"></span>
+            <span class="player-name" id="name-p2">AI</span>
+          </span>
+          <span class="player-pts" id="pts-p2">0</span>
+        </div>
+        <div class="wallet-mini" id="wallet-p2">B:0 W:0 Q:0</div>
+      </div>
+    </div>
+
+    <div class="top-actions">
+      <button type="button" class="buy-top-btn" id="btn-open-buy">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="square">
+          <rect x="3" y="3" width="18" height="18"></rect>
+          <path d="M12 8v8M8 12h8"></path>
+        </svg>
+        <span id="label-buy-top">BUY (50)</span>
+      </button>
+
+      <button type="button" class="icon-btn" id="btn-menu" aria-label="Menu">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="square">
+          <line x1="4" y1="7" x2="20" y2="7"></line>
+          <line x1="4" y1="12" x2="20" y2="12"></line>
+          <line x1="4" y1="17" x2="20" y2="17"></line>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="toast-pill" id="toast-pill">P1 TURN</div>
+
+  <!-- LIVE POWER BAR HUD -->
+  <div class="power-hud" id="power-hud">
+    <div class="power-hud-top">
+      <span id="power-label">POWER</span>
+      <span id="power-val">0%</span>
+    </div>
+    <div class="power-bar-outer">
+      <div class="power-bar-fill" id="power-fill"></div>
+    </div>
+  </div>
+
+  <!-- BOTTOM DOCK -->
+  <footer class="bottom-dock">
+    <div class="dock-card">
+      <div class="slider-track" id="slider-track">
+        <div class="slider-line"></div>
+        <div class="slider-thumb" id="slider-thumb"></div>
+      </div>
+
+      <button type="button" class="pan-btn" id="btn-pan" title="Pan Camera">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square">
+          <path d="M12 2v20M2 12h20M12 2l-3 3M12 2l3 3M12 22l-3-3M12 22l3-3M2 12l3-3M2 12l3 3M22 12l-3-3M22 12l-3 3"/>
+        </svg>
+        <span>PAN</span>
+      </button>
+
+      <button type="button" class="mode-switch-btn" id="btn-mode-toggle">
+        <svg id="icon-mode" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="square">
+          <rect x="3" y="3" width="18" height="18"></rect>
+          <rect x="9" y="9" width="6" height="6"></rect>
+        </svg>
+        <span id="label-mode">STRIKE</span>
+      </button>
+    </div>
+  </footer>
+
+  <!-- BUY PLOT MODAL (3 TIERS: LINES 50 -> RECTS 100 -> HOLES 150) -->
+  <div class="menu-backdrop" id="buy-backdrop">
+    <div class="menu-sheet">
+      <div class="menu-header">
+        <span class="menu-title" id="buy-modal-title">BUY PLOT // P1</span>
+        <button type="button" class="icon-btn" id="btn-buy-close" style="width:30px;height:30px;box-shadow:none;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="square">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <div class="tier-strip">
+        <div class="tier-chip" id="tchip-0">1.LINES 50</div>
+        <div class="tier-chip" id="tchip-1">2.RECTS 100</div>
+        <div class="tier-chip" id="tchip-2">3.HOLES 150</div>
+      </div>
+
+      <div class="menu-section">
+        <div class="menu-label">
+          <span id="plot-tier-title">SELECT PLOT (COST: 50)</span>
+          <span id="buyer-bank-label">BANK: 0</span>
+        </div>
+        <div class="plot-grid" id="plot-grid"></div>
+      </div>
+
+      <div class="menu-section">
+        <div class="menu-label">
+          <span>PUT MONEY ON MIDDLE OF BOARD</span>
+          <span id="pay-sum-label">0 / 50</span>
+        </div>
+        <div class="coin-pay-list">
+          <div class="coin-pay-row">
+            <span>BLACK (10) <small id="own-b-lbl">[0]</small></span>
+            <div class="coin-stepper">
+              <button type="button" class="step-btn" id="pay-b-minus">&minus;</button>
+              <span id="pay-b-val">0</span>
+              <button type="button" class="step-btn" id="pay-b-plus">&plus;</button>
+            </div>
+          </div>
+          <div class="coin-pay-row">
+            <span>WHITE (20) <small id="own-w-lbl">[0]</small></span>
+            <div class="coin-stepper">
+              <button type="button" class="step-btn" id="pay-w-minus">&minus;</button>
+              <span id="pay-w-val">0</span>
+              <button type="button" class="step-btn" id="pay-w-plus">&plus;</button>
+            </div>
+          </div>
+          <div class="coin-pay-row">
+            <span>QUEEN (50) <small id="own-q-lbl">[0]</small></span>
+            <div class="coin-stepper">
+              <button type="button" class="step-btn" id="pay-q-minus">&minus;</button>
+              <span id="pay-q-val">0</span>
+              <button type="button" class="step-btn" id="pay-q-plus">&plus;</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <button type="button" class="action-btn primary" id="btn-confirm-buy" style="width:100%;">BUY PLOT &amp; PLACE ON BOARD</button>
+    </div>
+  </div>
+
+  <!-- BANKRUPT // SELL PLOT OR FORFEIT MODAL -->
+  <div class="menu-backdrop" id="sell-backdrop">
+    <div class="menu-sheet">
+      <div class="menu-header">
+        <span class="menu-title" id="sell-modal-title">BANKRUPT // SELL PLOT OR FORFEIT</span>
+      </div>
+
+      <div class="menu-section">
+        <div class="menu-label">
+          <span>SELECT OWNED PLOT TO SELL</span>
+          <span id="sell-value-label">VALUE: 0</span>
+        </div>
+        <div class="plot-grid" id="sell-plot-grid"></div>
+      </div>
+
+      <div class="menu-actions">
+        <button type="button" class="action-btn danger-btn" id="btn-forfeit">FORFEIT &amp; LOSE</button>
+        <button type="button" class="action-btn primary" id="btn-confirm-sell">SELL &amp; STAKE</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SETTINGS MENU MODAL -->
+  <div class="menu-backdrop" id="menu-backdrop">
+    <div class="menu-sheet">
+      <div class="menu-header">
+        <span class="menu-title">MENU</span>
+        <button type="button" class="icon-btn" id="btn-menu-close" style="width:30px;height:30px;box-shadow:none;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="square">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <div class="menu-section">
+        <span class="menu-label">MODE</span>
+        <div class="seg-group" id="seg-mode">
+          <button type="button" class="seg-btn active" data-mode="AI">VS AI</button>
+          <button type="button" class="seg-btn" data-mode="2P">2 PLAYER</button>
+          <button type="button" class="seg-btn" data-mode="FREE">PRACTICE</button>
+        </div>
+      </div>
+
+      <div class="menu-actions">
+        <button type="button" class="action-btn" id="btn-audio">SOUND: ON</button>
+        <button type="button" class="action-btn" id="btn-center-cam">CENTER CAM</button>
+      </div>
+      <button type="button" class="action-btn primary" id="btn-reset" style="width:100%;">NEW MATCH // RESET PLOTS</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  // =========================================================================
+  // 1. SYNTHESIZED WEB AUDIO & HAPTICS
+  // =========================================================================
+  class AudioEngine {
+    constructor() {
+      this.ctx = null;
+      this.enabled = true;
+    }
+
+    init() {
+      if (!this.ctx) {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (AC) this.ctx = new AC();
+      }
+      if (this.ctx && this.ctx.state === 'suspended') {
+        this.ctx.resume().catch(() => {});
+      }
+    }
+
+    vibrate(ms) {
+      if (this.enabled && navigator.vibrate) {
+        try { navigator.vibrate(ms); } catch (_) {}
+      }
+    }
+
+    clack(intensity = 0.6, pitch = 1.0) {
+      if (!this.enabled) return;
+      this.init();
+      if (!this.ctx) return;
+      const now = this.ctx.currentTime;
+      const vol = Math.min(1.0, Math.max(0.04, intensity)) * 0.48;
+
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'triangle';
+      const freq = (540 + Math.random() * 140) * pitch;
+      osc.frequency.setValueAtTime(freq, now);
+      osc.frequency.exponentialRampToValueAtTime(freq * 0.24, now + 0.042);
+
+      gain.gain.setValueAtTime(vol, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.045);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.05);
+    }
+
+    rail(intensity = 0.6) {
+      if (!this.enabled) return;
+      this.init();
+      if (!this.ctx) return;
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(180, now);
+      osc.frequency.exponentialRampToValueAtTime(58, now + 0.075);
+      gain.gain.setValueAtTime(Math.min(0.55, intensity * 0.45), now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.085);
+    }
+
+    pocket(isQueen = false, isFoul = false) {
+      if (!this.enabled) return;
+      this.init();
+      if (!this.ctx) return;
+      this.vibrate(isQueen ? [25, 30, 45] : 22);
+      const now = this.ctx.currentTime;
+      const notes = isFoul ? [210, 145] : (isQueen ? [523.25, 659.25, 783.99] : [440, 587.33]);
+      notes.forEach((f, i) => {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = isFoul ? 'sawtooth' : 'triangle';
+        osc.frequency.setValueAtTime(f, now + i * 0.055);
+        gain.gain.setValueAtTime(0.22, now + i * 0.055);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.055 + 0.15);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now + i * 0.055);
+        osc.stop(now + i * 0.055 + 0.16);
+      });
+    }
+
+    tap() {
+      if (!this.enabled) return;
+      this.init();
+      if (!this.ctx) return;
+      this.vibrate(6);
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(660, now);
+      gain.gain.setValueAtTime(0.06, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.022);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.025);
+    }
+  }
+
+  const sfx = new AudioEngine();
+
+  // =========================================================================
+  // 2. BOARD DIMENSIONS, COIN VALUES & PLOT GEOMETRY CONSTANTS
+  // =========================================================================
+  const BOARD_HALF = 10.0;
+  const POCKET_POS = 9.08;
+  const POCKET_RADIUS = 0.88;
+  const COIN_RADIUS = 0.50;
+  const COIN_HALF_H = 0.13;
+  const STRIKER_RADIUS = 0.65;
+  const STRIKER_HALF_H = 0.15;
+  const BASELINE_Z = 7.15;
+  const BASELINE_SPAN = 5.45;
+  const BASELINE_HALF_W = STRIKER_RADIUS * 0.86;
+  const MAX_POWER_PCT = 0.90;
+  const CANCEL_PULL_DIST = 0.55;
+
+  // Universal piece monetary values: Black = 10, White = 20, Queen = 50
+  const COIN_VALUES = { black: 10, white: 20, queen: 50, striker: 0 };
+
+  const POCKETS = [
+    new THREE.Vector2(-POCKET_POS, -POCKET_POS), // 0: NW
+    new THREE.Vector2(POCKET_POS, -POCKET_POS),  // 1: NE
+    new THREE.Vector2(-POCKET_POS, POCKET_POS),  // 2: SW
+    new THREE.Vector2(POCKET_POS, POCKET_POS)    // 3: SE
+  ];
+
+  const OWNER_COLORS = { 1: 0x00e5ff, 2: 0xf72585 };
+  const OWNER_HEX_CSS = { 1: '#00e5ff', 2: '#f72585' };
+
+  // =========================================================================
+  // 3. THE 12 BUYABLE PLOTS (3 TIERS: LINES 50 -> RECTANGLES 100 -> HOLES 150)
+  // =========================================================================
+  const PLOTS = [
+    // Tier 0: The 4 Existing Black Diagonal Lines Pointing to the Holes (Cost 50)
+    { id: 'line_nw', tier: 0, cost: 50, name: 'NW LINE', owner: 0, sx: -1, sz: -1, rotIdx: 2 },
+    { id: 'line_ne', tier: 0, cost: 50, name: 'NE LINE', owner: 0, sx: 1, sz: -1, rotIdx: 3 },
+    { id: 'line_sw', tier: 0, cost: 50, name: 'SW LINE', owner: 0, sx: -1, sz: 1, rotIdx: 1 },
+    { id: 'line_se', tier: 0, cost: 50, name: 'SE LINE', owner: 0, sx: 1, sz: 1, rotIdx: 0 },
+
+    // Tier 1: The 4 Existing Rectangular Baseline Areas (Cost 100)
+    { id: 'rect_s', tier: 1, cost: 100, name: 'SOUTH RECT', owner: 0, rotIdx: 0, minX: -BASELINE_SPAN, maxX: BASELINE_SPAN, minZ: BASELINE_Z - BASELINE_HALF_W, maxZ: BASELINE_Z + BASELINE_HALF_W },
+    { id: 'rect_n', tier: 1, cost: 100, name: 'NORTH RECT', owner: 0, rotIdx: 2, minX: -BASELINE_SPAN, maxX: BASELINE_SPAN, minZ: -BASELINE_Z - BASELINE_HALF_W, maxZ: -BASELINE_Z + BASELINE_HALF_W },
+    { id: 'rect_w', tier: 1, cost: 100, name: 'WEST RECT', owner: 0, rotIdx: 1, minX: -BASELINE_Z - BASELINE_HALF_W, maxX: -BASELINE_Z + BASELINE_HALF_W, minZ: -BASELINE_SPAN, maxZ: BASELINE_SPAN },
+    { id: 'rect_e', tier: 1, cost: 100, name: 'EAST RECT', owner: 0, rotIdx: 3, minX: BASELINE_Z - BASELINE_HALF_W, maxX: BASELINE_Z + BASELINE_HALF_W, minZ: -BASELINE_SPAN, maxZ: BASELINE_SPAN },
+
+    // Tier 2: The 4 Corner Holes (Cost 150)
+    { id: 'hole_nw', tier: 2, cost: 150, name: 'NW HOLE', owner: 0, pocketIdx: 0 },
+    { id: 'hole_ne', tier: 2, cost: 150, name: 'NE HOLE', owner: 0, pocketIdx: 1 },
+    { id: 'hole_sw', tier: 2, cost: 150, name: 'SW HOLE', owner: 0, pocketIdx: 2 },
+    { id: 'hole_se', tier: 2, cost: 150, name: 'SE HOLE', owner: 0, pocketIdx: 3 }
+  ];
+
+  // =========================================================================
+  // 4. STYLIZED OUTLINED 3D SCENE & ARCHITECTURAL STUDIO ROOM
+  // =========================================================================
+  const canvas = document.getElementById('stage-canvas');
+  const renderer = new THREE.WebGLRenderer({
+    canvas,
+    antialias: true,
+    powerPreference: 'high-performance'
+  });
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.outputEncoding = THREE.sRGBEncoding;
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0xf6efe2);
+
+  const camera = new THREE.PerspectiveCamera(38, 1, 0.5, 220);
+
+  const hemiLight = new THREE.HemisphereLight(0xfffcf5, 0xc9b8d4, 0.72);
+  hemiLight.position.set(0, 48, 0);
+  scene.add(hemiLight);
+
+  const sunLight = new THREE.DirectionalLight(0xfff5e4, 0.98);
+  sunLight.position.set(9, 38, 11);
+  sunLight.castShadow = true;
+  sunLight.shadow.mapSize.width = 2048;
+  sunLight.shadow.mapSize.height = 2048;
+  sunLight.shadow.camera.near = 8;
+  sunLight.shadow.camera.far = 65;
+  const sBound = 14.5;
+  sunLight.shadow.camera.left = -sBound;
+  sunLight.shadow.camera.right = sBound;
+  sunLight.shadow.camera.top = sBound;
+  sunLight.shadow.camera.bottom = -sBound;
+  sunLight.shadow.bias = -0.00012;
+  sunLight.shadow.normalBias = 0.014;
+  scene.add(sunLight);
+
+  const fillLight = new THREE.DirectionalLight(0xdbeafe, 0.32);
+  fillLight.position.set(-24, 20, -18);
+  scene.add(fillLight);
+
+  const inkLineMat = new THREE.LineBasicMaterial({ color: 0x121216 });
+  const inkHullMat = new THREE.MeshBasicMaterial({ color: 0x121216, side: THREE.BackSide });
+
+  function addInkEdges(mesh, thresholdAngle = 22) {
+    const edgesGeo = new THREE.EdgesGeometry(mesh.geometry, thresholdAngle);
+    const lines = new THREE.LineSegments(edgesGeo, inkLineMat);
+    mesh.add(lines);
+    return mesh;
+  }
+
+  function addInvertedHull(mesh, scaleX = 1.04, scaleY = 1.06, scaleZ = 1.04) {
+    const hull = new THREE.Mesh(mesh.geometry, inkHullMat);
+    hull.scale.set(scaleX, scaleY, scaleZ);
+    mesh.add(hull);
+    return mesh;
+  }
+
+  function createStylizedFloorTexture() {
+    const c = document.createElement('canvas');
+    c.width = 1024;
+    c.height = 1024;
+    const ctx = c.getContext('2d');
+
+    ctx.fillStyle = '#e0bd8c';
+    ctx.fillRect(0, 0, 1024, 1024);
+
+    const rows = 16;
+    const cols = 4;
+    const rowH = 1024 / rows;
+    const colW = 1024 / cols;
+
+    for (let r = 0; r < rows; r++) {
+      const stagger = (r % 2) * (colW * 0.5);
+      for (let col = -1; col <= cols; col++) {
+        const x = col * colW + stagger;
+        const y = r * rowH;
+        const palette = ['#e4c394', '#d9b584', '#cfa976', '#e8ca9d'];
+        ctx.fillStyle = palette[(r * 3 + col * 5 + 10) % palette.length];
+        ctx.fillRect(x, y, colW, rowH);
+
+        ctx.strokeStyle = 'rgba(30, 22, 16, 0.12)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x + 18, y + rowH * 0.5);
+        ctx.lineTo(x + colW - 18, y + rowH * 0.5);
+        ctx.stroke();
+
+        ctx.strokeStyle = '#231c16';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(x, y, colW, rowH);
+      }
+    }
+
+    const rx = 180, ry = 180, rw = 664, rh = 664;
+
+    ctx.fillStyle = 'rgba(18, 18, 22, 0.30)';
+    ctx.fillRect(rx + 10, ry + 10, rw, rh);
+
+    ctx.fillStyle = '#fff9eb';
+    ctx.strokeStyle = '#121216';
+    ctx.lineWidth = 2.5;
+    for (let fx = rx + 8; fx < rx + rw - 8; fx += 14) {
+      ctx.fillRect(fx, ry - 16, 8, 16);
+      ctx.strokeRect(fx, ry - 16, 8, 16);
+      ctx.fillRect(fx, ry + rh, 8, 16);
+      ctx.strokeRect(fx, ry + rh, 8, 16);
+    }
+
+    ctx.fillStyle = '#ff5722';
+    ctx.fillRect(rx, ry, rw, rh);
+    ctx.lineWidth = 5;
+    ctx.strokeRect(rx, ry, rw, rh);
+
+    ctx.fillStyle = '#1d3557';
+    ctx.fillRect(rx + 32, ry + 32, rw - 64, rh - 64);
+    ctx.strokeRect(rx + 32, ry + 32, rw - 64, rh - 64);
+
+    ctx.fillStyle = '#ffbe0b';
+    ctx.fillRect(rx + 62, ry + 62, rw - 124, rh - 124);
+    ctx.strokeRect(rx + 62, ry + 62, rw - 124, rh - 124);
+
+    ctx.fillStyle = '#fff8eb';
+    ctx.fillRect(rx + 88, ry + 88, rw - 176, rh - 176);
+    ctx.strokeRect(rx + 88, ry + 88, rw - 176, rh - 176);
+
+    ctx.fillStyle = '#00b4d8';
+    ctx.beginPath();
+    ctx.moveTo(512, ry + 120);
+    ctx.lineTo(rx + rw - 120, 512);
+    ctx.lineTo(512, ry + rh - 96);
+    ctx.lineTo(rx + 120, 512);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = 'rgba(18, 18, 22, 0.26)';
+    ctx.fillRect(344, 344, 348, 348);
+
+    const tex = new THREE.CanvasTexture(c);
+    tex.anisotropy = 4;
+    tex.encoding = THREE.sRGBEncoding;
+    return tex;
+  }
+
+  function buildStylizedStudioRoom() {
+    const room = new THREE.Group();
+    scene.add(room);
+
+    const floorY = -10.5;
+    const roomSpan = 88;
+    const halfSpan = roomSpan / 2;
+    const wallH = 40;
+
+    const floorGeo = new THREE.PlaneGeometry(roomSpan, roomSpan);
+    floorGeo.rotateX(-Math.PI / 2);
+    const floorMat = new THREE.MeshStandardMaterial({
+      map: createStylizedFloorTexture(),
+      roughness: 0.72,
+      metalness: 0.02
+    });
+    const floorMesh = new THREE.Mesh(floorGeo, floorMat);
+    floorMesh.position.y = floorY;
+    room.add(floorMesh);
+
+    const sunPatchGeo = new THREE.PlaneGeometry(18, 22);
+    sunPatchGeo.rotateX(-Math.PI / 2);
+    const sunPatchMat = new THREE.MeshBasicMaterial({
+      color: 0xfffbeb,
+      transparent: true,
+      opacity: 0.28
+    });
+    const sunPatch = new THREE.Mesh(sunPatchGeo, sunPatchMat);
+    sunPatch.position.set(-22, floorY + 0.03, 2);
+    sunPatch.rotation.z = -0.15;
+    room.add(sunPatch);
+
+    const wallCreamMat = new THREE.MeshStandardMaterial({ color: 0xfbf6ec, roughness: 0.85 });
+    const wallTealAccentMat = new THREE.MeshStandardMaterial({ color: 0xe6f2f0, roughness: 0.85 });
+    const wainscotMat = new THREE.MeshStandardMaterial({ color: 0xe9dcc4, roughness: 0.7 });
+    const trimMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 });
+
+    const walls = [
+      { x: 0, z: -halfSpan, ry: 0, mat: wallTealAccentMat },
+      { x: 0, z: halfSpan, ry: Math.PI, mat: wallCreamMat },
+      { x: -halfSpan, z: 0, ry: Math.PI / 2, mat: wallCreamMat },
+      { x: halfSpan, z: 0, ry: -Math.PI / 2, mat: wallCreamMat }
+    ];
+
+    walls.forEach((cfg) => {
+      const wg = new THREE.Group();
+      wg.position.set(cfg.x, floorY, cfg.z);
+      wg.rotation.y = cfg.ry;
+
+      const upper = new THREE.Mesh(new THREE.PlaneGeometry(roomSpan, wallH), cfg.mat);
+      upper.position.y = wallH / 2;
+      wg.add(upper);
+
+      const wainscot = addInkEdges(new THREE.Mesh(new THREE.BoxGeometry(roomSpan, 9.2, 0.35), wainscotMat));
+      wainscot.position.set(0, 4.6, 0.18);
+      wg.add(wainscot);
+
+      for (let bx = -36; bx <= 36; bx += 12) {
+        const batten = addInkEdges(new THREE.Mesh(new THREE.BoxGeometry(0.6, 8.4, 0.55), trimMat));
+        batten.position.set(bx, 4.6, 0.28);
+        wg.add(batten);
+      }
+
+      const chairRail = addInkEdges(new THREE.Mesh(new THREE.BoxGeometry(roomSpan, 0.55, 0.65), trimMat));
+      chairRail.position.set(0, 9.3, 0.32);
+      wg.add(chairRail);
+
+      const baseboard = addInkEdges(new THREE.Mesh(new THREE.BoxGeometry(roomSpan, 0.95, 0.6), trimMat));
+      baseboard.position.set(0, 0.48, 0.3);
+      wg.add(baseboard);
+
+      room.add(wg);
+    });
+
+    const winGroup = new THREE.Group();
+    winGroup.position.set(-halfSpan + 0.4, floorY + 19, 0);
+    winGroup.rotation.y = Math.PI / 2;
+
+    const skyCanvas = document.createElement('canvas');
+    skyCanvas.width = 512;
+    skyCanvas.height = 512;
+    const sctx = skyCanvas.getContext('2d');
+    const skyGrad = sctx.createLinearGradient(0, 0, 0, 512);
+    skyGrad.addColorStop(0, '#7dd3fc');
+    skyGrad.addColorStop(0.65, '#bae6fd');
+    skyGrad.addColorStop(1, '#fef08a');
+    sctx.fillStyle = skyGrad;
+    sctx.fillRect(0, 0, 512, 512);
+
+    sctx.beginPath();
+    sctx.arc(360, 140, 54, 0, Math.PI * 2);
+    sctx.fillStyle = '#ffbe0b';
+    sctx.fill();
+    sctx.lineWidth = 5;
+    sctx.strokeStyle = '#121216';
+    sctx.stroke();
+
+    sctx.fillStyle = '#f4a261';
+    sctx.fillRect(30, 340, 130, 172);
+    sctx.strokeRect(30, 340, 130, 172);
+    sctx.fillStyle = '#e76f51';
+    sctx.fillRect(140, 300, 160, 212);
+    sctx.strokeRect(140, 300, 160, 212);
+    sctx.fillStyle = '#2a9d8f';
+    sctx.fillRect(280, 360, 200, 152);
+    sctx.strokeRect(280, 360, 200, 152);
+
+    const skyTex = new THREE.CanvasTexture(skyCanvas);
+    skyTex.encoding = THREE.sRGBEncoding;
+
+    const skyPane = new THREE.Mesh(
+      new THREE.PlaneGeometry(22, 15),
+      new THREE.MeshBasicMaterial({ map: skyTex })
+    );
+    winGroup.add(skyPane);
+
+    const steelMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.4 });
+    const casingTop = addInkEdges(new THREE.Mesh(new THREE.BoxGeometry(23.6, 0.9, 1.0), trimMat));
+    casingTop.position.y = 7.6;
+    winGroup.add(casingTop);
+
+    const casingSill = addInkEdges(new THREE.Mesh(new THREE.BoxGeometry(24.4, 0.9, 1.4), trimMat));
+    casingSill.position.y = -7.6;
+    winGroup.add(casingSill);
+
+    [-11.0, -3.6, 3.6, 11.0].forEach((wx) => {
+      const mullion = addInkEdges(new THREE.Mesh(new THREE.BoxGeometry(0.45, 15.2, 0.6), steelMat));
+      mullion.position.x = wx;
+      winGroup.add(mullion);
+    });
+
+    [-2.5, 2.5].forEach((wy) => {
+      const transom = addInkEdges(new THREE.Mesh(new THREE.BoxGeometry(22.2, 0.4, 0.6), steelMat));
+      transom.position.y = wy;
+      winGroup.add(transom);
+    });
+
+    room.add(winGroup);
+
+    const walnutMat = new THREE.MeshStandardMaterial({ color: 0x6b3e26, roughness: 0.45 });
+    const oakMat = new THREE.MeshStandardMaterial({ color: 0xc89b6e, roughness: 0.5 });
+    const brassMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.3, metalness: 0.3 });
+
+    const credenzaGroup = new THREE.Group();
+    credenzaGroup.position.set(0, floorY, -halfSpan + 2.4);
+
+    const credBody = addInkEdges(new THREE.Mesh(new THREE.BoxGeometry(24, 5.2, 4.0), walnutMat));
+    credBody.position.y = 4.4;
+    credenzaGroup.add(credBody);
+
+    [-5.8, 5.8].forEach((dx) => {
+      const door = addInkEdges(new THREE.Mesh(new THREE.BoxGeometry(10.8, 4.2, 0.25), oakMat));
+      door.position.set(dx, 4.4, 2.02);
+      credenzaGroup.add(door);
+    });
+
+    [[-10.8, -1.5], [10.8, -1.5], [-10.8, 1.5], [10.8, 1.5]].forEach(([lx, lz]) => {
+      const cLeg = addInkEdges(new THREE.Mesh(new THREE.BoxGeometry(0.55, 1.8, 0.55), walnutMat));
+      cLeg.position.set(lx, 0.9, lz);
+      credenzaGroup.add(cLeg);
+    });
+
+    const plinth = addInkEdges(new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.55, 3.2), new THREE.MeshStandardMaterial({ color: 0xff4500 })));
+    plinth.position.set(-7.2, 7.28, 0);
+    credenzaGroup.add(plinth);
+
+    const platter = addInkEdges(new THREE.Mesh(new THREE.CylinderGeometry(1.25, 1.25, 0.2, 24), new THREE.MeshStandardMaterial({ color: 0x121216 })));
+    platter.position.set(-7.5, 7.65, 0);
+    credenzaGroup.add(platter);
+
+    const bookColors = [0x00b4d8, 0xffbe0b, 0xe11d48, 0x2a9d8f, 0xff5722];
+    for (let b = 0; b < 5; b++) {
+      const bk = addInkEdges(new THREE.Mesh(
+        new THREE.BoxGeometry(0.55, 2.6 + (b % 2) * 0.4, 2.2),
+        new THREE.MeshStandardMaterial({ color: bookColors[b] })
+      ));
+      bk.position.set(1.2 + b * 0.62, 8.3, 0);
+      credenzaGroup.add(bk);
+    }
+
+    const sculpBase = addInkEdges(new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.8, 1.4), brassMat));
+    sculpBase.position.set(8.2, 7.9, 0);
+    credenzaGroup.add(sculpBase);
+
+    const sculpTop = addInkEdges(new THREE.Mesh(new THREE.BoxGeometry(1.4, 2.0, 1.0), new THREE.MeshStandardMaterial({ color: 0x1d3557 })));
+    sculpTop.position.set(8.6, 9.8, 0);
+    credenzaGroup.add(sculpTop);
+
+    room.add(credenzaGroup);
+
+    [-8.5, 0, 8.5].forEach((ax, idx) => {
+      const frame = addInkEdges(new THREE.Mesh(
+        new THREE.BoxGeometry(6.2, 8.4, 0.45),
+        new THREE.MeshStandardMaterial({ color: 0x121216 })
+      ));
+      frame.position.set(ax, floorY + 17.5, -halfSpan + 0.35);
+      room.add(frame);
+
+      const matBoard = addInkEdges(new THREE.Mesh(
+        new THREE.BoxGeometry(5.4, 7.6, 0.52),
+        new THREE.MeshStandardMaterial({ color: 0xfffdf9 })
+      ));
+      matBoard.position.set(ax, floorY + 17.5, -halfSpan + 0.38);
+      room.add(matBoard);
+
+      const artColor = idx === 0 ? 0xff4500 : (idx === 1 ? 0x00b4d8 : 0xffbe0b);
+      const artCenter = addInkEdges(new THREE.Mesh(
+        new THREE.BoxGeometry(3.6, 5.2, 0.58),
+        new THREE.MeshStandardMaterial({ color: artColor })
+      ));
+      artCenter.position.set(ax, floorY + 17.5, -halfSpan + 0.42);
+      room.add(artCenter);
+    });
+
+    const plantGroup = new THREE.Group();
+    plantGroup.position.set(25, floorY, -28);
+
+    const stand1 = addInkEdges(new THREE.Mesh(new THREE.BoxGeometry(3.8, 1.8, 0.5), walnutMat));
+    stand1.position.y = 0.9;
+    plantGroup.add(stand1);
+
+    const stand2 = stand1.clone();
+    stand2.rotation.y = Math.PI / 2;
+    plantGroup.add(stand2);
+
+    const planterPot = addInkEdges(new THREE.Mesh(
+      new THREE.CylinderGeometry(2.2, 1.8, 4.0, 12),
+      new THREE.MeshStandardMaterial({ color: 0xe76f51, roughness: 0.5 })
+    ), 15);
+    planterPot.position.y = 3.2;
+    plantGroup.add(planterPot);
+
+    const leafMat = new THREE.MeshStandardMaterial({ color: 0x10b981, roughness: 0.45 });
+    const stemMat = new THREE.MeshStandardMaterial({ color: 0x065f46, roughness: 0.5 });
+
+    for (let i = 0; i < 7; i++) {
+      const branch = new THREE.Group();
+      branch.position.set(0, 4.8, 0);
+      branch.rotation.y = (i * Math.PI * 2) / 7 + 0.2;
+      branch.rotation.z = 0.28 + (i % 2) * 0.18;
+
+      const stem = addInkEdges(new THREE.Mesh(new THREE.BoxGeometry(0.22, 3.2, 0.22), stemMat));
+      stem.position.y = 1.6;
+      branch.add(stem);
+
+      const blade = addInkEdges(new THREE.Mesh(new THREE.BoxGeometry(1.8, 2.8, 0.18), leafMat));
+      blade.position.y = 3.4;
+      blade.rotation.z = -0.15;
+      branch.add(blade);
+
+      plantGroup.add(branch);
+    }
+    room.add(plantGroup);
+
+    const pouf = addInkEdges(new THREE.Mesh(
+      new THREE.CylinderGeometry(3.6, 3.8, 2.6, 12),
+      new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.65 })
+    ), 15);
+    pouf.position.set(26, floorY + 1.3, 18);
+    room.add(pouf);
+
+    const sideTableTop = addInkEdges(new THREE.Mesh(
+      new THREE.CylinderGeometry(2.4, 2.4, 0.35, 16),
+      brassMat
+    ), 15);
+    sideTableTop.position.set(22, floorY + 4.2, 24);
+    room.add(sideTableTop);
+
+    const sideTablePed = addInkEdges(new THREE.Mesh(
+      new THREE.CylinderGeometry(0.35, 1.4, 4.2, 12),
+      new THREE.MeshStandardMaterial({ color: 0x121216 })
+    ), 15);
+    sideTablePed.position.set(22, floorY + 2.1, 24);
+    room.add(sideTablePed);
+
+    const cord = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.12, 0.12, 14, 8),
+      new THREE.MeshBasicMaterial({ color: 0x121216 })
+    );
+    cord.position.set(0, 21, 0);
+    room.add(cord);
+
+    const shade = addInkEdges(new THREE.Mesh(
+      new THREE.ConeGeometry(4.2, 2.4, 12, 1, true),
+      new THREE.MeshStandardMaterial({ color: 0xff4500, side: THREE.DoubleSide, roughness: 0.4 })
+    ), 15);
+    shade.position.set(0, 14.2, 0);
+    room.add(shade);
+
+    const tableApron = addInkEdges(new THREE.Mesh(
+      new THREE.BoxGeometry(21.2, 1.4, 21.2),
+      walnutMat
+    ));
+    tableApron.position.set(0, -1.12, 0);
+    room.add(tableApron);
+
+    [[-9.0, -9.0], [9.0, -9.0], [-9.0, 9.0], [9.0, 9.0]].forEach(([lx, lz]) => {
+      const leg = addInkEdges(new THREE.Mesh(new THREE.BoxGeometry(1.15, 9.2, 1.15), walnutMat));
+      leg.position.set(lx, floorY + 4.9, lz);
+      room.add(leg);
+
+      const foot = addInkEdges(new THREE.Mesh(new THREE.BoxGeometry(1.35, 0.5, 1.35), brassMat));
+      foot.position.set(lx, floorY + 0.25, lz);
+      room.add(foot);
+    });
+
+    const beamH = addInkEdges(new THREE.Mesh(new THREE.BoxGeometry(18.0, 0.7, 0.7), walnutMat));
+    beamH.position.set(0, floorY + 3.2, -9.0);
+    room.add(beamH);
+
+    const beamH2 = beamH.clone();
+    beamH2.position.z = 9.0;
+    room.add(beamH2);
+
+    const beamV = addInkEdges(new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.7, 18.0), walnutMat));
+    beamV.position.set(0, floorY + 3.2, 0);
+    room.add(beamV);
+  }
+  buildStylizedStudioRoom();
+
+  // =========================================================================
+  // 5. DYNAMIC CARROM BOARD TEXTURE (PAINTS OWNED LINES, RECTS & PRECISE HOLE RINGS)
+  // =========================================================================
+  const boardCanvas = document.createElement('canvas');
+  boardCanvas.width = 1024;
+  boardCanvas.height = 1024;
+  const boardCtx = boardCanvas.getContext('2d');
+  const boardTex = new THREE.CanvasTexture(boardCanvas);
+  boardTex.anisotropy = 4;
+  boardTex.encoding = THREE.sRGBEncoding;
+
+  function drawBoardSurface() {
+    const ctx = boardCtx;
+    ctx.fillStyle = '#fce8c3';
+    ctx.fillRect(0, 0, 1024, 1024);
+
+    ctx.strokeStyle = 'rgba(140, 82, 30, 0.06)';
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 140; i++) {
+      const y = (i / 140) * 1024;
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.bezierCurveTo(340, y + Math.sin(i) * 6, 680, y - Math.cos(i) * 6, 1024, y);
+      ctx.stroke();
+    }
+
+    const ink = '#121216';
+    const crimson = '#ff1744';
+    const cyan = '#00b4d8';
+
+    ctx.strokeStyle = ink;
+    ctx.lineWidth = 6;
+    ctx.strokeRect(24, 24, 976, 976);
+
+    // Precise Corner Hole Highlights painted directly onto the board around each pocket
+    const holePlots = PLOTS.filter(p => p.tier === 2);
+    const pocketRadPx = (POCKET_RADIUS / BOARD_HALF) * 512;
+    holePlots.forEach((hp) => {
+      const pk = POCKETS[hp.pocketIdx];
+      const cx = 512 + (pk.x / BOARD_HALF) * 512;
+      const cy = 512 + (pk.y / BOARD_HALF) * 512;
+
+      if (hp.owner !== 0) {
+        ctx.beginPath();
+        ctx.arc(cx, cy, pocketRadPx + 14, 0, Math.PI * 2);
+        ctx.fillStyle = OWNER_HEX_CSS[hp.owner];
+        ctx.fill();
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = ink;
+        ctx.stroke();
+      } else {
+        ctx.beginPath();
+        ctx.arc(cx, cy, pocketRadPx + 6, 0, Math.PI * 2);
+        ctx.lineWidth = 3.5;
+        ctx.strokeStyle = ink;
+        ctx.stroke();
+      }
+    });
+
+    const outerRackR = (2.52 / BOARD_HALF) * 512;
+    const innerQueenR = (COIN_RADIUS / BOARD_HALF) * 512;
+
+    ctx.save();
+    ctx.translate(512, 512);
+    for (let i = 0; i < 12; i++) {
+      ctx.rotate(Math.PI / 6);
+      ctx.beginPath();
+      ctx.moveTo(0, -innerQueenR * 1.05);
+      ctx.lineTo(12, -outerRackR * 0.62);
+      ctx.lineTo(0, -outerRackR * 0.96);
+      ctx.lineTo(-12, -outerRackR * 0.62);
+      ctx.closePath();
+      ctx.fillStyle = (i % 2 === 0) ? crimson : cyan;
+      ctx.fill();
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = ink;
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    ctx.beginPath();
+    ctx.arc(512, 512, outerRackR, 0, Math.PI * 2);
+    ctx.strokeStyle = ink;
+    ctx.lineWidth = 5;
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(512, 512, innerQueenR, 0, Math.PI * 2);
+    ctx.fillStyle = crimson;
+    ctx.fill();
+    ctx.strokeStyle = ink;
+    ctx.lineWidth = 4;
+    ctx.stroke();
+
+    const baseDist = (BASELINE_Z / BOARD_HALF) * 512;
+    const baseSpan = (BASELINE_SPAN / BOARD_HALF) * 512;
+    const endCircleR = (STRIKER_RADIUS / BOARD_HALF) * 512;
+    const bandHalf = endCircleR * 0.86;
+
+    for (let rot = 0; rot < 4; rot++) {
+      ctx.save();
+      ctx.translate(512, 512);
+      ctx.rotate((rot * Math.PI) / 2);
+
+      // 1. Existing Rectangular Baseline Area (colored directly when bought!)
+      const rectPlot = PLOTS.find(p => p.tier === 1 && p.rotIdx === rot);
+      if (rectPlot && rectPlot.owner !== 0) {
+        ctx.fillStyle = OWNER_HEX_CSS[rectPlot.owner];
+        ctx.fillRect(-baseSpan, baseDist - bandHalf, baseSpan * 2, bandHalf * 2);
+      }
+
+      ctx.strokeStyle = ink;
+      ctx.lineWidth = 5;
+      ctx.strokeRect(-baseSpan, baseDist - bandHalf, baseSpan * 2, bandHalf * 2);
+
+      [-baseSpan, baseSpan].forEach((ex) => {
+        ctx.beginPath();
+        ctx.arc(ex, baseDist, endCircleR, 0, Math.PI * 2);
+        ctx.fillStyle = crimson;
+        ctx.fill();
+        ctx.strokeStyle = ink;
+        ctx.lineWidth = 4;
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(ex, baseDist, endCircleR * 0.4, 0, Math.PI * 2);
+        ctx.fillStyle = '#ffbe0b';
+        ctx.fill();
+        ctx.stroke();
+      });
+
+      // 2. Existing Diagonal Line Pointing to the Hole (colored directly when bought!)
+      const linePlot = PLOTS.find(p => p.tier === 0 && p.rotIdx === rot);
+      if (linePlot && linePlot.owner !== 0) {
+        ctx.strokeStyle = ink;
+        ctx.lineWidth = 14;
+        ctx.lineCap = 'square';
+        ctx.beginPath();
+        ctx.moveTo(155, 155);
+        ctx.lineTo(372, 372);
+        ctx.stroke();
+
+        ctx.strokeStyle = OWNER_HEX_CSS[linePlot.owner];
+        ctx.lineWidth = 8;
+        ctx.beginPath();
+        ctx.moveTo(155, 155);
+        ctx.lineTo(372, 372);
+        ctx.stroke();
+      } else {
+        ctx.strokeStyle = ink;
+        ctx.lineWidth = 5;
+        ctx.lineCap = 'butt';
+        ctx.beginPath();
+        ctx.moveTo(155, 155);
+        ctx.lineTo(372, 372);
+        ctx.stroke();
+      }
+
+      ctx.fillStyle = (linePlot && linePlot.owner !== 0) ? OWNER_HEX_CSS[linePlot.owner] : ink;
+      ctx.beginPath();
+      ctx.moveTo(380, 380);
+      ctx.lineTo(354, 368);
+      ctx.lineTo(368, 354);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    boardTex.needsUpdate = true;
+  }
+
+  const boardGroup = new THREE.Group();
+  scene.add(boardGroup);
+
+  const playfieldMesh = addInkEdges(new THREE.Mesh(
+    new THREE.BoxGeometry(BOARD_HALF * 2, 0.5, BOARD_HALF * 2),
+    new THREE.MeshStandardMaterial({
+      map: boardTex,
+      roughness: 0.32,
+      metalness: 0.02
+    })
+  ));
+  playfieldMesh.position.y = -0.25;
+  playfieldMesh.receiveShadow = true;
+  boardGroup.add(playfieldMesh);
+
+  // Precise, flush 3D pocket wells and collars (never exceeding board edge 10.0)
+  const pocketGeo = new THREE.CylinderGeometry(POCKET_RADIUS, POCKET_RADIUS * 0.88, 0.54, 32);
+  const pocketMat = new THREE.MeshBasicMaterial({ color: 0x121216 });
+  const pocketRimGeo = new THREE.RingGeometry(POCKET_RADIUS * 0.94, POCKET_RADIUS * 1.04, 32);
+  pocketRimGeo.rotateX(-Math.PI / 2);
+
+  const pocketRimMeshes = [];
+  POCKETS.forEach((p) => {
+    const well = new THREE.Mesh(pocketGeo, pocketMat);
+    well.position.set(p.x, -0.23, p.y);
+    boardGroup.add(well);
+
+    const rimMat = new THREE.MeshBasicMaterial({ color: 0x121216, side: THREE.DoubleSide });
+    const rim = new THREE.Mesh(pocketRimGeo, rimMat);
+    rim.position.set(p.x, 0.005, p.y);
+    boardGroup.add(rim);
+    pocketRimMeshes.push(rim);
+  });
+
+  const frameW = 1.5;
+  const frameH = 0.86;
+  const frameMat = new THREE.MeshStandardMaterial({
+    color: 0x221e22,
+    roughness: 0.38,
+    metalness: 0.08
+  });
+  const cornerMat = new THREE.MeshStandardMaterial({
+    color: 0xffbe0b,
+    roughness: 0.3,
+    metalness: 0.3
+  });
+
+  const fullLen = BOARD_HALF * 2 + frameW * 2;
+  const rGeoH = new THREE.BoxGeometry(fullLen, frameH, frameW);
+  const rGeoV = new THREE.BoxGeometry(frameW, frameH, BOARD_HALF * 2);
+
+  const rNorth = addInkEdges(new THREE.Mesh(rGeoH, frameMat));
+  rNorth.position.set(0, frameH / 2 - 0.2, -(BOARD_HALF + frameW / 2));
+  rNorth.castShadow = true;
+  rNorth.receiveShadow = true;
+  boardGroup.add(rNorth);
+
+  const rSouth = addInkEdges(new THREE.Mesh(rGeoH, frameMat));
+  rSouth.position.set(0, frameH / 2 - 0.2, BOARD_HALF + frameW / 2);
+  rSouth.castShadow = true;
+  rSouth.receiveShadow = true;
+  boardGroup.add(rSouth);
+
+  const rWest = addInkEdges(new THREE.Mesh(rGeoV, frameMat));
+  rWest.position.set(-(BOARD_HALF + frameW / 2), frameH / 2 - 0.2, 0);
+  rWest.castShadow = true;
+  rWest.receiveShadow = true;
+  boardGroup.add(rWest);
+
+  const rEast = addInkEdges(new THREE.Mesh(rGeoV, frameMat));
+  rEast.position.set(BOARD_HALF + frameW / 2, frameH / 2 - 0.2, 0);
+  rEast.castShadow = true;
+  rEast.receiveShadow = true;
+  boardGroup.add(rEast);
+
+  const cornerGeo = new THREE.BoxGeometry(frameW * 1.28, frameH + 0.06, frameW * 1.28);
+  [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz]) => {
+    const cap = addInkEdges(new THREE.Mesh(cornerGeo, cornerMat));
+    cap.position.set(sx * (BOARD_HALF + frameW * 0.5), frameH / 2 - 0.19, sz * (BOARD_HALF + frameW * 0.5));
+    boardGroup.add(cap);
+  });
+
+  function syncPlotVisuals() {
+    drawBoardSurface();
+    PLOTS.filter(p => p.tier === 2).forEach((p) => {
+      const rim = pocketRimMeshes[p.pocketIdx];
+      if (p.owner === 0) {
+        rim.material.color.setHex(0x121216);
+      } else {
+        rim.material.color.setHex(OWNER_COLORS[p.owner]);
+      }
+    });
+  }
+
+  function distToSegmentSq(px, pz, ax, az, bx, bz) {
+    const abx = bx - ax;
+    const abz = bz - az;
+    const apx = px - ax;
+    const apz = pz - az;
+    const lenSq = abx * abx + abz * abz;
+    let t = lenSq > 1e-6 ? (apx * abx + apz * abz) / lenSq : 0;
+    t = Math.max(0, Math.min(1, t));
+    const cx = ax + t * abx - px;
+    const cz = az + t * abz - pz;
+    return cx * cx + cz * cz;
+  }
+
+  function distToRectSq(px, pz, minX, maxX, minZ, maxZ) {
+    const dx = Math.max(0, minX - px, px - maxX);
+    const dz = Math.max(0, minZ - pz, pz - maxZ);
+    return dx * dx + dz * dz;
+  }
+
+  // =========================================================================
+  // 6. STYLIZED OUTLINED CARROM PIECES & ZERO-CLIPPING PHYSICS ENGINE
+  // =========================================================================
+  function createDiscCapTexture(type) {
+    const c = document.createElement('canvas');
+    c.width = 256;
+    c.height = 256;
+    const ctx = c.getContext('2d');
+
+    const styles = {
+      white: { bg: '#fffdf7', ring1: '#121216', ring2: '#ff4500', dot: '#121216' },
+      black: { bg: '#181820', ring1: '#00e5ff', ring2: '#ffbe0b', dot: '#ffbe0b' },
+      queen: { bg: '#ff1744', ring1: '#ffbe0b', ring2: '#121216', dot: '#ffffff' },
+      striker: { bg: '#ffffff', ring1: '#ff4500', ring2: '#121216', dot: '#ffbe0b' }
+    };
+    const st = styles[type];
+
+    ctx.fillStyle = st.bg;
+    ctx.fillRect(0, 0, 256, 256);
+
+    ctx.beginPath();
+    ctx.arc(128, 128, 118, 0, Math.PI * 2);
+    ctx.strokeStyle = '#121216';
+    ctx.lineWidth = 14;
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(128, 128, 102, 0, Math.PI * 2);
+    ctx.strokeStyle = st.ring1;
+    ctx.lineWidth = 10;
+    ctx.stroke();
+
+    ctx.save();
+    ctx.translate(128, 128);
+    const n = type === 'striker' ? 12 : 8;
+    for (let i = 0; i < n; i++) {
+      ctx.rotate((Math.PI * 2) / n);
+      ctx.fillStyle = i % 2 === 0 ? st.ring1 : st.ring2;
+      ctx.fillRect(-6, -92, 12, 18);
+    }
+    ctx.restore();
+
+    ctx.beginPath();
+    ctx.arc(128, 128, 54, 0, Math.PI * 2);
+    ctx.strokeStyle = st.ring2;
+    ctx.lineWidth = 9;
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(128, 128, 22, 0, Math.PI * 2);
+    ctx.fillStyle = st.dot;
+    ctx.fill();
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = '#121216';
+    ctx.stroke();
+
+    const tex = new THREE.CanvasTexture(c);
+    tex.anisotropy = 4;
+    tex.encoding = THREE.sRGBEncoding;
+    return tex;
+  }
+
+  const capTextures = {
+    white: createDiscCapTexture('white'),
+    black: createDiscCapTexture('black'),
+    queen: createDiscCapTexture('queen'),
+    striker: createDiscCapTexture('striker')
+  };
+
+  const sideColors = {
+    white: 0xf4efe1,
+    black: 0x262630,
+    queen: 0xd8113b,
+    striker: 0xff4500
+  };
+
+  const _upVec = new THREE.Vector3(0, 1, 0);
+  const _xAxis = new THREE.Vector3(1, 0, 0);
+  const _spinQ = new THREE.Quaternion();
+
+  class RigidDisc3D {
+    constructor(id, type, radius, halfH, mass) {
+      this.id = id;
+      this.type = type;
+      this.value = COIN_VALUES[type] || 0;
+      this.radius = radius;
+      this.halfH = halfH;
+      this.mass = mass;
+      this.invMass = 1.0 / mass;
+
+      this.I_trans = (1.0 / 12.0) * mass * (3.0 * radius * radius + 4.0 * halfH * halfH);
+      this.invI = 1.0 / this.I_trans;
+
+      this.pos = new THREE.Vector3(0, halfH, 0);
+      this.startShotPos = new THREE.Vector3(0, halfH, 0);
+      this.vel = new THREE.Vector3();
+      this.angVel = new THREE.Vector3();
+      this.u = new THREE.Vector3(0, 1, 0);
+      this.spinYaw = 0;
+
+      this.pocketed = false;
+      this.owner = 0;
+      this.fallingPocket = null;
+      this.fallTimer = 0;
+      this.poised = false;
+      this.movedThisShot = false;
+
+      const geo = new THREE.CylinderGeometry(radius, radius, halfH * 2, 32);
+      const sMat = new THREE.MeshStandardMaterial({ color: sideColors[type], roughness: 0.34, metalness: 0.04 });
+      const cMat = new THREE.MeshStandardMaterial({ map: capTextures[type], roughness: 0.26, metalness: 0.04 });
+      this.mesh = new THREE.Mesh(geo, [sMat, cMat, cMat]);
+      this.mesh.castShadow = true;
+      this.mesh.receiveShadow = true;
+
+      addInvertedHull(this.mesh, 1.045, 1.08, 1.045);
+
+      scene.add(this.mesh);
+    }
+
+    resetUpright(x, y, z, yaw = 0, poised = false) {
+      this.pos.set(x, y, z);
+      this.startShotPos.set(x, y, z);
+      this.vel.set(0, 0, 0);
+      this.angVel.set(0, 0, 0);
+      this.u.set(0, 1, 0);
+      this.spinYaw = yaw;
+      this.pocketed = false;
+      this.owner = 0;
+      this.fallingPocket = null;
+      this.fallTimer = 0;
+      this.poised = poised;
+      this.movedThisShot = false;
+      this.syncMesh();
+    }
+
+    syncMesh() {
+      this.mesh.position.copy(this.pos);
+      if (_upVec.dot(this.u) < -0.9999) {
+        this.mesh.quaternion.setFromAxisAngle(_xAxis, Math.PI);
+      } else {
+        this.mesh.quaternion.setFromUnitVectors(_upVec, this.u);
+      }
+      if (this.spinYaw !== 0) {
+        _spinQ.setFromAxisAngle(this.u, this.spinYaw);
+        this.mesh.quaternion.premultiply(_spinQ);
+      }
+      this.mesh.visible = !this.pocketed || this.fallingPocket !== null;
+    }
+  }
+
+  const bodies = [];
+  const coins = [];
+
+  const queenBody = new RigidDisc3D(0, 'queen', COIN_RADIUS, COIN_HALF_H, 1.0);
+  bodies.push(queenBody);
+  coins.push(queenBody);
+
+  for (let i = 0; i < 9; i++) {
+    const w = new RigidDisc3D(bodies.length, 'white', COIN_RADIUS, COIN_HALF_H, 1.0);
+    bodies.push(w);
+    coins.push(w);
+
+    const b = new RigidDisc3D(bodies.length, 'black', COIN_RADIUS, COIN_HALF_H, 1.0);
+    bodies.push(b);
+    coins.push(b);
+  }
+
+  const striker = new RigidDisc3D(bodies.length, 'striker', STRIKER_RADIUS, STRIKER_HALF_H, 4.5);
+  bodies.push(striker);
+
+  function cylExtent(u, R, H, nx, ny, nz) {
+    let un = u.x * nx + u.y * ny + u.z * nz;
+    if (un > 1.0) un = 1.0;
+    else if (un < -1.0) un = -1.0;
+    return H * Math.abs(un) + R * Math.sqrt(Math.max(0.0, 1.0 - un * un));
+  }
+
+  const _satNormal = new THREE.Vector3();
+  const _candAxes = Array.from({ length: 8 }, () => new THREE.Vector3());
+
+  function testCylinderSAT(A, B) {
+    const dx = B.pos.x - A.pos.x;
+    const dy = B.pos.y - A.pos.y;
+    const dz = B.pos.z - A.pos.z;
+    const distSq = dx * dx + dy * dy + dz * dz;
+    const maxBound = A.radius + A.halfH + B.radius + B.halfH;
+    if (distSq >= maxBound * maxBound) return -1;
+
+    const dist = Math.sqrt(distSq);
+    let numAxes = 0;
+
+    _candAxes[numAxes++].copy(A.u);
+    _candAxes[numAxes++].copy(B.u);
+
+    if (dist > 1e-5) {
+      _candAxes[numAxes++].set(dx / dist, dy / dist, dz / dist);
+    }
+
+    const dotA = dx * A.u.x + dy * A.u.y + dz * A.u.z;
+    const rxA = dx - dotA * A.u.x;
+    const ryA = dy - dotA * A.u.y;
+    const rzA = dz - dotA * A.u.z;
+    const rLenA = Math.hypot(rxA, ryA, rzA);
+    if (rLenA > 1e-5) {
+      _candAxes[numAxes++].set(rxA / rLenA, ryA / rLenA, rzA / rLenA);
+    }
+
+    const dotB = dx * B.u.x + dy * B.u.y + dz * B.u.z;
+    const rxB = dx - dotB * B.u.x;
+    const ryB = dy - dotB * B.u.y;
+    const rzB = dz - dotB * B.u.z;
+    const rLenB = Math.hypot(rxB, ryB, rzB);
+    if (rLenB > 1e-5) {
+      _candAxes[numAxes++].set(rxB / rLenB, ryB / rLenB, rzB / rLenB);
+    }
+
+    if (rLenA > 1e-5) {
+      const ux = rxA / rLenA, uy = ryA / rLenA, uz = rzA / rLenA;
+      _candAxes[numAxes].set(A.u.x + ux, A.u.y + uy, A.u.z + uz).normalize();
+      numAxes++;
+      _candAxes[numAxes].set(A.u.x - ux, A.u.y - uy, A.u.z - uz).normalize();
+      numAxes++;
+    }
+
+    let minPen = Infinity;
+    for (let i = 0; i < numAxes; i++) {
+      const ax = _candAxes[i];
+      let nx = ax.x, ny = ax.y, nz = ax.z;
+      let projD = dx * nx + dy * ny + dz * nz;
+      if (projD < 0) {
+        nx = -nx; ny = -ny; nz = -nz;
+        projD = -projD;
+      }
+      const extA = cylExtent(A.u, A.radius, A.halfH, nx, ny, nz);
+      const extB = cylExtent(B.u, B.radius, B.halfH, nx, ny, nz);
+      const pen = (extA + extB) - projD;
+      if (pen <= 0) return -1;
+      if (pen < minPen) {
+        minPen = pen;
+        _satNormal.set(nx, ny, nz);
+      }
+    }
+    return minPen;
+  }
+
+  const _contactPt = new THREE.Vector3();
+  const _rA = new THREE.Vector3();
+  const _rB = new THREE.Vector3();
+  const _vA = new THREE.Vector3();
+  const _vB = new THREE.Vector3();
+  const _vRel = new THREE.Vector3();
+  const _rnA = new THREE.Vector3();
+  const _rnB = new THREE.Vector3();
+  const _imp = new THREE.Vector3();
+  const _tang = new THREE.Vector3();
+
+  function computeContactPoint(A, B, nx, ny, nz) {
+    const uaN = A.u.x * nx + A.u.y * ny + A.u.z * nz;
+    const ubN = B.u.x * nx + B.u.y * ny + B.u.z * nz;
+
+    if (Math.abs(uaN) > 0.84 && Math.abs(ubN) > 0.84) {
+      const dx = B.pos.x - A.pos.x;
+      const dy = B.pos.y - A.pos.y;
+      const dz = B.pos.z - A.pos.z;
+      const axial = dx * A.u.x + dy * A.u.y + dz * A.u.z;
+      const rx = dx - axial * A.u.x;
+      const ry = dy - axial * A.u.y;
+      const rz = dz - axial * A.u.z;
+      const rDist = Math.hypot(rx, ry, rz);
+      const s = uaN >= 0 ? 1.0 : -1.0;
+
+      if (rDist > 1e-5) {
+        const pivotR = Math.min(A.radius * 0.88, rDist * 0.68);
+        const invR = pivotR / rDist;
+        _contactPt.set(
+          A.pos.x + s * A.halfH * A.u.x + rx * invR,
+          A.pos.y + s * A.halfH * A.u.y + ry * invR,
+          A.pos.z + s * A.halfH * A.u.z + rz * invR
+        );
+      } else {
+        _contactPt.set(
+          0.5 * (A.pos.x + B.pos.x),
+          0.5 * (A.pos.y + B.pos.y),
+          0.5 * (A.pos.z + B.pos.z)
+        );
+      }
+      return;
+    }
+
+    const sA = Math.abs(uaN) > 0.25 ? (uaN >= 0 ? A.halfH : -A.halfH) : 0;
+    const rxA = nx - uaN * A.u.x;
+    const ryA = ny - uaN * A.u.y;
+    const rzA = nz - uaN * A.u.z;
+    const rlA = Math.hypot(rxA, ryA, rzA);
+    const scA = rlA > 1e-5 ? A.radius / rlA : 0;
+
+    const pxA = A.pos.x + sA * A.u.x + rxA * scA;
+    const pyA = A.pos.y + sA * A.u.y + ryA * scA;
+    const pzA = A.pos.z + sA * A.u.z + rzA * scA;
+
+    const sB = Math.abs(ubN) > 0.25 ? (-ubN >= 0 ? B.halfH : -B.halfH) : 0;
+    const rxB = -nx + ubN * B.u.x;
+    const ryB = -ny + ubN * B.u.y;
+    const rzB = -nz + ubN * B.u.z;
+    const rB = Math.hypot(rxB, ryB, rzB);
+    const scB = rB > 1e-5 ? B.radius / rB : 0;
+
+    const pxB = B.pos.x + sB * B.u.x + rxB * scB;
+    const pyB = B.pos.y + sB * B.u.y + ryB * scB;
+    const pzB = B.pos.z + sB * B.u.z + rzB * scB;
+
+    _contactPt.set(0.5 * (pxA + pxB), 0.5 * (pyA + pyB), 0.5 * (pzA + pzB));
+  }
+
+  // =========================================================================
+  // 7. TOWER STACKING & PUTTING MONEY ON THE MIDDLE OF THE BOARD
+  // =========================================================================
+  let towerOrder = [];
+
+  function setupSingleTowerRack() {
+    const whites = coins.filter(c => c.type === 'white');
+    const blacks = coins.filter(c => c.type === 'black');
+    const H2 = COIN_HALF_H * 2;
+
+    towerOrder = [];
+    for (let i = 0; i < 9; i++) {
+      towerOrder.push(blacks[i]);
+      towerOrder.push(whites[i]);
+    }
+    towerOrder.push(queenBody);
+
+    towerOrder.forEach((c, idx) => {
+      c.resetUpright(0, COIN_HALF_H + idx * H2, 0, idx * 0.38, true);
+    });
+  }
+
+  function placeCoinsInMiddleOfBoard(coinList) {
+    if (!coinList || coinList.length === 0) return;
+    const H2 = COIN_HALF_H * 2;
+
+    let baseH = COIN_HALF_H;
+    let anyPoisedAtCenter = false;
+    for (let i = 0; i < coins.length; i++) {
+      const c = coins[i];
+      if (!c.pocketed && !coinList.includes(c) && Math.hypot(c.pos.x, c.pos.z) < COIN_RADIUS * 2.1) {
+        const topY = c.pos.y + H2;
+        if (topY > baseH) baseH = topY;
+        if (c.poised) anyPoisedAtCenter = true;
+      }
+    }
+
+    const shouldPoise = anyPoisedAtCenter || coinList.length >= 2;
+    coinList.forEach((c, idx) => {
+      c.resetUpright(0, baseH + idx * H2, 0, idx * 0.42, shouldPoise);
+      if (!towerOrder.includes(c)) towerOrder.push(c);
+    });
+  }
+
+  // =========================================================================
+  // 8. PLOT ECONOMY, DEBT REPAYMENT & EXACT CHANGE ENGINE
+  // =========================================================================
+  function getPlayerCoins(p) {
+    return coins.filter(c => c.pocketed && c.owner === p);
+  }
+
+  function getPlayerCounts(p) {
+    const list = getPlayerCoins(p);
+    return {
+      black: list.filter(c => c.type === 'black').length,
+      white: list.filter(c => c.type === 'white').length,
+      queen: list.filter(c => c.type === 'queen').length
+    };
+  }
+
+  function getPlayerMoney(p) {
+    return getPlayerCoins(p).reduce((sum, c) => sum + c.value, 0);
+  }
+
+  function getPlayerNetScore(p) {
+    return getPlayerMoney(p) - state.debt[p];
+  }
+
+  function areAllPlotsBought() {
+    return PLOTS.every(p => p.owner !== 0);
+  }
+
+  function getActivePlotTier() {
+    for (let t = 0; t <= 2; t++) {
+      if (PLOTS.some(p => p.tier === t && p.owner === 0)) return t;
+    }
+    return 2;
+  }
+
+  function getCurrentTierCost() {
+    if (areAllPlotsBought()) return 0;
+    const t = getActivePlotTier();
+    return [50, 100, 150][t];
+  }
+
+  // Settles any negative score / foul debt using Player p's coins:
+  // "whenever it's negative scoring any coins is placed on board centre until the debt is covered
+  //  and if it's a 20 and debt is ten then 20 is placed and any random 10 from the board is given to the player."
+  function settlePlayerDebt(p) {
+    const toBoard = [];
+    while (state.debt[p] > 0) {
+      const pCoins = getPlayerCoins(p);
+      if (pCoins.length === 0) break;
+
+      const blacks = pCoins.filter(c => c.type === 'black');
+      if (blacks.length > 0) {
+        toBoard.push(blacks[0]);
+        blacks[0].owner = 0;
+        state.debt[p] -= 10;
+        continue;
+      }
+
+      const whites = pCoins.filter(c => c.type === 'white');
+      if (whites.length > 0) {
+        const w = whites[0];
+        w.owner = 0;
+        toBoard.push(w);
+        if (state.debt[p] >= 20) {
+          state.debt[p] -= 20;
+        } else {
+          // debt is 10 and coin is 20 -> place 20 on board and give any random 10 from board to player p!
+          state.debt[p] = 0;
+          const boardBlacks = coins.filter(c => !c.pocketed && c.type === 'black' && !toBoard.includes(c));
+          if (boardBlacks.length > 0) {
+            const randIdx = Math.floor(Math.random() * boardBlacks.length);
+            const givenTen = boardBlacks[randIdx];
+            givenTen.pocketed = true;
+            givenTen.owner = p;
+            givenTen.poised = false;
+            givenTen.fallingPocket = null;
+            givenTen.syncMesh();
+          } else {
+            const oppBlacks = coins.filter(c => c.pocketed && c.owner === (3 - p) && c.type === 'black');
+            if (oppBlacks.length > 0) {
+              oppBlacks[0].owner = p;
+            }
+          }
+        }
+        continue;
+      }
+
+      const queens = pCoins.filter(c => c.type === 'queen');
+      if (queens.length > 0) {
+        const q = queens[0];
+        q.owner = 0;
+        toBoard.push(q);
+        let changeDue = Math.max(0, 50 - state.debt[p]);
+        state.debt[p] = 0;
+        const giveFromPool = (pool) => {
+          for (const c of pool) {
+            if (changeDue >= c.value && !toBoard.includes(c)) {
+              c.pocketed = true;
+              c.owner = p;
+              c.poised = false;
+              c.fallingPocket = null;
+              c.syncMesh();
+              changeDue -= c.value;
+            }
+          }
+        };
+        const bWhites = coins.filter(c => !c.pocketed && c.type === 'white');
+        const bBlacks = coins.filter(c => !c.pocketed && c.type === 'black');
+        giveFromPool(bWhites);
+        giveFromPool(bBlacks);
+        if (changeDue > 0) {
+          const oWhites = coins.filter(c => c.pocketed && c.owner === (3 - p) && c.type === 'white');
+          const oBlacks = coins.filter(c => c.pocketed && c.owner === (3 - p) && c.type === 'black');
+          giveFromPool(oWhites);
+          giveFromPool(oBlacks);
+        }
+        continue;
+      }
+      break;
+    }
+
+    if (toBoard.length > 0) {
+      placeCoinsInMiddleOfBoard(toBoard);
+    }
+  }
+
+  function findExactSubsetCounts(counts, target) {
+    for (let dq = counts.queen; dq >= 0; dq--) {
+      for (let dw = counts.white; dw >= 0; dw--) {
+        const rem = target - (50 * dq + 20 * dw);
+        if (rem >= 0 && rem % 10 === 0) {
+          const db = rem / 10;
+          if (db <= counts.black) {
+            return { queen: dq, white: dw, black: db };
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  function swapCoinOwnership(coinA, coinBList) {
+    const targetOwner = coinBList[0].owner;
+    const origOwner = coinA.owner;
+
+    if (targetOwner === 0) {
+      const ref = coinBList[0];
+      coinA.resetUpright(ref.pos.x, ref.pos.y, ref.pos.z, ref.spinYaw, ref.poised);
+      for (let i = 0; i < coinBList.length; i++) {
+        coinBList[i].pocketed = true;
+        coinBList[i].owner = origOwner;
+        coinBList[i].fallingPocket = null;
+        coinBList[i].poised = false;
+        coinBList[i].syncMesh();
+      }
+    } else {
+      coinA.owner = targetOwner;
+      for (let i = 0; i < coinBList.length; i++) {
+        coinBList[i].owner = origOwner;
+      }
+    }
+  }
+
+  function ensureExactChangeForPlayer(p, target) {
+    let counts = getPlayerCounts(p);
+    let sub = findExactSubsetCounts(counts, target);
+    if (sub) return sub;
+
+    const other = p === 1 ? 2 : 1;
+
+    const pWhites = coins.filter(c => c.pocketed && c.owner === p && c.type === 'white');
+    if (pWhites.length > 0) {
+      const oppBlacks = coins.filter(c => c.pocketed && c.owner === other && c.type === 'black');
+      if (oppBlacks.length >= 2) {
+        swapCoinOwnership(pWhites[0], [oppBlacks[0], oppBlacks[1]]);
+      } else {
+        const boardBlacks = coins.filter(c => !c.pocketed && c.type === 'black');
+        if (boardBlacks.length >= 2) {
+          swapCoinOwnership(pWhites[0], [boardBlacks[0], boardBlacks[1]]);
+        }
+      }
+    }
+
+    counts = getPlayerCounts(p);
+    sub = findExactSubsetCounts(counts, target);
+    if (sub) return sub;
+
+    const pQueens = coins.filter(c => c.pocketed && c.owner === p && c.type === 'queen');
+    if (pQueens.length > 0) {
+      const oppCounts = getPlayerCounts(other);
+      const oppSub50 = findExactSubsetCounts({ queen: 0, white: oppCounts.white, black: oppCounts.black }, 50);
+      if (oppSub50) {
+        const oppW = coins.filter(c => c.pocketed && c.owner === other && c.type === 'white').slice(0, oppSub50.white);
+        const oppB = coins.filter(c => c.pocketed && c.owner === other && c.type === 'black').slice(0, oppSub50.black);
+        swapCoinOwnership(pQueens[0], [...oppW, ...oppB]);
+      }
+    }
+
+    counts = getPlayerCounts(p);
+    return findExactSubsetCounts(counts, target);
+  }
+
+  function transferPlayerCoinsToBoard(p, subsetCounts) {
+    const pBlacks = coins.filter(c => c.pocketed && c.owner === p && c.type === 'black').slice(0, subsetCounts.black);
+    const pWhites = coins.filter(c => c.pocketed && c.owner === p && c.type === 'white').slice(0, subsetCounts.white);
+    const pQueens = coins.filter(c => c.pocketed && c.owner === p && c.type === 'queen').slice(0, subsetCounts.queen);
+    const toPlace = [...pBlacks, ...pWhites, ...pQueens];
+    placeCoinsInMiddleOfBoard(toPlace);
+  }
+
+  function transferCoinsPlayerToPlayer(fromP, toP, amount) {
+    if (amount <= 0) return;
+    const sub = ensureExactChangeForPlayer(fromP, amount);
+    if (!sub) return;
+    const fBlacks = coins.filter(c => c.pocketed && c.owner === fromP && c.type === 'black').slice(0, sub.black);
+    const fWhites = coins.filter(c => c.pocketed && c.owner === fromP && c.type === 'white').slice(0, sub.white);
+    const fQueens = coins.filter(c => c.pocketed && c.owner === fromP && c.type === 'queen').slice(0, sub.queen);
+    [...fBlacks, ...fWhites, ...fQueens].forEach(c => { c.owner = toP; });
+  }
+
+  // =========================================================================
+  // 9. JUICY 3D AIM & SLINGSHOT POWER VISUALS
+  // =========================================================================
+  const aimGroup = new THREE.Group();
+  scene.add(aimGroup);
+
+  const pwrInnerGeo = new THREE.RingGeometry(STRIKER_RADIUS * 1.18, STRIKER_RADIUS * 1.44, 32);
+  pwrInnerGeo.rotateX(-Math.PI / 2);
+  const pwrInnerMat = new THREE.MeshBasicMaterial({ color: 0x00e5ff, side: THREE.DoubleSide });
+  const pwrInnerRing = new THREE.Mesh(pwrInnerGeo, pwrInnerMat);
+  pwrInnerRing.position.y = 0.03;
+  aimGroup.add(pwrInnerRing);
+
+  const pwrOuterGeo = new THREE.RingGeometry(STRIKER_RADIUS * 1.55, STRIKER_RADIUS * 1.75, 24);
+  pwrOuterGeo.rotateX(-Math.PI / 2);
+  const pwrOuterMat = new THREE.MeshBasicMaterial({ color: 0x121216, side: THREE.DoubleSide });
+  const pwrOuterRing = new THREE.Mesh(pwrOuterGeo, pwrOuterMat);
+  pwrOuterRing.position.y = 0.025;
+  aimGroup.add(pwrOuterRing);
+
+  const pullBandGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]);
+  const pullBandMat = new THREE.LineBasicMaterial({ color: 0xff4500 });
+  const pullBandLine = new THREE.Line(pullBandGeo, pullBandMat);
+  aimGroup.add(pullBandLine);
+
+  const pullHandleGeo = new THREE.BoxGeometry(0.46, 0.14, 0.46);
+  const pullHandleMat = new THREE.MeshBasicMaterial({ color: 0xffbe0b });
+  const pullHandle = addInkEdges(new THREE.Mesh(pullHandleGeo, pullHandleMat));
+  pullHandle.position.y = 0.14;
+  aimGroup.add(pullHandle);
+
+  const NUM_DASHES = 10;
+  const dashMeshes = [];
+  const dashGeo = new THREE.BoxGeometry(0.18, 0.06, 0.36);
+  for (let i = 0; i < NUM_DASHES; i++) {
+    const dMat = new THREE.MeshBasicMaterial({ color: 0x121216 });
+    const dm = new THREE.Mesh(dashGeo, dMat);
+    dm.position.y = 0.08;
+    aimGroup.add(dm);
+    dashMeshes.push(dm);
+  }
+
+  const ghostGeo = new THREE.RingGeometry(STRIKER_RADIUS * 0.78, STRIKER_RADIUS * 1.04, 24);
+  ghostGeo.rotateX(-Math.PI / 2);
+  const ghostMat = new THREE.MeshBasicMaterial({ color: 0xff4500, side: THREE.DoubleSide });
+  const ghostRing = new THREE.Mesh(ghostGeo, ghostMat);
+  ghostRing.position.y = 0.035;
+  aimGroup.add(ghostRing);
+
+  const deflectGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]);
+  const deflectMat = new THREE.LineBasicMaterial({ color: 0xffbe0b });
+  const deflectLine = new THREE.Line(deflectGeo, deflectMat);
+  aimGroup.add(deflectLine);
+
+  // =========================================================================
+  // 10. GAME STATE, BUY/SELL PLOT MODALS & TURN ENGINE
+  // =========================================================================
+  const state = {
+    gameMode: 'AI',          // 'AI' | '2P' | 'FREE'
+    phase: 'IDLE',           // 'IDLE' | 'SIMULATING' | 'AI_TURN' | 'FORCED_BUY' | 'BANKRUPT_SELL' | 'GAME_OVER'
+    inputMode: 'VIEW',       // 'VIEW' | 'PAN' | 'STRIKE'
+    turn: 1,                 // 1 = P1, 2 = AI/P2
+    canBuyThisTurn: true,    // True ONLY at the start of a turn before using the striker!
+    debt: { 1: 0, 2: 0 },    // Foul debt (allows negative net score!)
+    pendingQueenFor: 0,      // 0 = none, 1 or 2 = player who holed Queen in unbought hole and must cover it on this strike
+    strikerX: 0.0,
+    aimDirX: 0.0,
+    aimDirZ: -1.0,
+    aimPower: 0.72,
+    pullDist: 0.0,
+    shotCancelled: false,
+    pocketedEvents: [],
+    shotElapsed: 0.0,
+    settleFrames: 0,
+    camYaw: 0.0,
+    camPitch: 0.64,
+    camZoom: 1.0,
+    panTarget: new THREE.Vector3(0, 0.8, 0),
+    aiTimer: null,
+    buyModalBuyer: 1,
+    buyForced: false,
+    selectedPlotId: null,
+    paySelect: { black: 0, white: 0, queen: 0 },
+    sellModalPlayer: 1,
+    selectedSellPlotId: null
+  };
+
+  function showToast(msg, duration = 1600) {
+    const el = document.getElementById('toast-pill');
+    el.textContent = msg;
+    el.classList.add('visible');
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(() => el.classList.remove('visible'), duration);
+  }
+
+  function setInputMode(mode) {
+    state.inputMode = mode;
+    const strikeBtn = document.getElementById('btn-mode-toggle');
+    const panBtn = document.getElementById('btn-pan');
+    const label = document.getElementById('label-mode');
+    const icon = document.getElementById('icon-mode');
+
+    panBtn.classList.toggle('active', mode === 'PAN');
+
+    if (mode === 'STRIKE') {
+      strikeBtn.classList.add('strike-active');
+      label.textContent = 'VIEW';
+      icon.innerHTML = '<path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"></path><rect x="10" y="10" width="4" height="4"></rect>';
+      state.shotCancelled = false;
+      state.pullDist = 2.4;
+    } else {
+      strikeBtn.classList.remove('strike-active');
+      label.textContent = 'STRIKE';
+      icon.innerHTML = '<rect x="3" y="3" width="18" height="18"></rect><rect x="9" y="9" width="6" height="6"></rect>';
+      document.getElementById('power-hud').classList.remove('visible');
+    }
+    updateAimGuide();
+  }
+
+  function updateUI() {
+    const s1 = getPlayerNetScore(1);
+    const s2 = getPlayerNetScore(2);
+    const c1 = getPlayerCounts(1);
+    const c2 = getPlayerCounts(2);
+
+    const pts1El = document.getElementById('pts-p1');
+    const pts2El = document.getElementById('pts-p2');
+    pts1El.textContent = s1;
+    pts2El.textContent = s2;
+    pts1El.classList.toggle('negative', s1 < 0);
+    pts2El.classList.toggle('negative', s2 < 0);
+
+    document.getElementById('wallet-p1').textContent = `B:${c1.black} W:${c1.white} Q:${c1.queen}`;
+    document.getElementById('wallet-p2').textContent = `B:${c2.black} W:${c2.white} Q:${c2.queen}`;
+    document.getElementById('name-p2').textContent = state.gameMode === '2P' ? 'P2' : 'AI';
+
+    document.getElementById('pill-p1').classList.toggle('active', state.turn === 1);
+    document.getElementById('pill-p2').classList.toggle('active', state.turn === 2);
+
+    const isHumanIdle = state.phase === 'IDLE' && (state.turn === 1 || state.gameMode === '2P');
+    document.getElementById('btn-mode-toggle').disabled = !isHumanIdle;
+
+    const buyBtn = document.getElementById('btn-open-buy');
+    if (areAllPlotsBought()) {
+      buyBtn.disabled = true;
+      buyBtn.classList.remove('can-afford');
+      document.getElementById('label-buy-top').textContent = 'ALL SOLD';
+    } else {
+      const cost = getCurrentTierCost();
+      const activeBuyer = (state.gameMode === '2P' && state.turn === 2) ? 2 : 1;
+      const canAfford = isHumanIdle && state.canBuyThisTurn && getPlayerNetScore(activeBuyer) >= cost;
+      buyBtn.disabled = !(isHumanIdle && state.canBuyThisTurn);
+      buyBtn.classList.toggle('can-afford', canAfford);
+      document.getElementById('label-buy-top').textContent = state.canBuyThisTurn ? `BUY (${cost})` : 'LOCKED';
+    }
+  }
+
+  // =========================================================================
+  // 11. BUY PLOT MODAL & BANKRUPT SELL/FORFEIT MODAL CONTROLLERS
+  // =========================================================================
+  const buyBackdrop = document.getElementById('buy-backdrop');
+  const sellBackdrop = document.getElementById('sell-backdrop');
+
+  function openBuyModal(buyerPlayer, isForced = false) {
+    if (areAllPlotsBought()) return;
+    state.buyModalBuyer = buyerPlayer;
+    state.buyForced = isForced;
+
+    const tier = getActivePlotTier();
+    const cost = [50, 100, 150][tier];
+
+    if (getPlayerNetScore(buyerPlayer) >= cost) {
+      const autoSub = ensureExactChangeForPlayer(buyerPlayer, cost);
+      if (autoSub) {
+        state.paySelect.black = autoSub.black;
+        state.paySelect.white = autoSub.white;
+        state.paySelect.queen = autoSub.queen;
+      } else {
+        state.paySelect = { black: 0, white: 0, queen: 0 };
+      }
+    } else {
+      state.paySelect = { black: 0, white: 0, queen: 0 };
+    }
+
+    const availPlots = PLOTS.filter(p => p.tier === tier && p.owner === 0);
+    state.selectedPlotId = availPlots.length > 0 ? availPlots[0].id : null;
+
+    document.getElementById('btn-buy-close').style.display = isForced ? 'none' : 'inline-flex';
+    renderBuyModal();
+    buyBackdrop.classList.add('open');
+  }
+
+  function renderBuyModal() {
+    const buyer = state.buyModalBuyer;
+    const buyerName = buyer === 1 ? 'P1' : (state.gameMode === '2P' ? 'P2' : 'AI');
+    const tier = getActivePlotTier();
+    const cost = [50, 100, 150][tier];
+    const tierNames = ['LINES (50)', 'RECTANGLES (100)', 'HOLES (150)'];
+
+    document.getElementById('buy-modal-title').textContent = state.buyForced
+      ? `FORCED BUY // ${buyerName} MUST BUY!`
+      : `BUY PLOT // ${buyerName}`;
+
+    for (let t = 0; t <= 2; t++) {
+      const chip = document.getElementById(`tchip-${t}`);
+      chip.className = 'tier-chip' + (t < tier ? ' done' : (t === tier ? ' unlocked' : ''));
+    }
+
+    document.getElementById('plot-tier-title').textContent = `TIER ${tier + 1}: ${tierNames[tier]}`;
+    document.getElementById('buyer-bank-label').textContent = `BANK: ${getPlayerNetScore(buyer)}`;
+
+    const grid = document.getElementById('plot-grid');
+    grid.innerHTML = '';
+    const tierPlots = PLOTS.filter(p => p.tier === tier);
+
+    tierPlots.forEach((p) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      let cls = 'plot-card';
+      let statusText = `COST: ${p.cost}`;
+      if (p.owner === 1) {
+        cls += ' owned-p1';
+        statusText = 'OWNED BY P1';
+      } else if (p.owner === 2) {
+        cls += ' owned-p2';
+        statusText = state.gameMode === '2P' ? 'OWNED BY P2' : 'OWNED BY AI';
+      } else if (state.selectedPlotId === p.id) {
+        cls += ' selected';
+        statusText = `SELECTED (${p.cost})`;
+      }
+      btn.className = cls;
+      btn.innerHTML = `<span class="plot-card-name">${p.name}</span><span class="plot-card-status">${statusText}</span>`;
+      if (p.owner === 0) {
+        btn.addEventListener('pointerdown', (e) => {
+          e.preventDefault();
+          sfx.tap();
+          state.selectedPlotId = p.id;
+          renderBuyModal();
+        });
+      }
+      grid.appendChild(btn);
+    });
+
+    const counts = getPlayerCounts(buyer);
+    document.getElementById('own-b-lbl').textContent = `[HAVE ${counts.black}]`;
+    document.getElementById('own-w-lbl').textContent = `[HAVE ${counts.white}]`;
+    document.getElementById('own-q-lbl').textContent = `[HAVE ${counts.queen}]`;
+
+    document.getElementById('pay-b-val').textContent = state.paySelect.black;
+    document.getElementById('pay-w-val').textContent = state.paySelect.white;
+    document.getElementById('pay-q-val').textContent = state.paySelect.queen;
+
+    const selectedSum = state.paySelect.black * 10 + state.paySelect.white * 20 + state.paySelect.queen * 50;
+    document.getElementById('pay-sum-label').textContent = `${selectedSum} / ${cost}`;
+
+    const confirmBtn = document.getElementById('btn-confirm-buy');
+    confirmBtn.disabled = !(state.selectedPlotId && selectedSum === cost);
+  }
+
+  function adjustPayCount(type, delta) {
+    const buyer = state.buyModalBuyer;
+    const counts = getPlayerCounts(buyer);
+    const next = state.paySelect[type] + delta;
+    if (next < 0 || next > counts[type]) return;
+    sfx.tap();
+    state.paySelect[type] = next;
+    renderBuyModal();
+  }
+
+  document.getElementById('pay-b-minus').addEventListener('pointerdown', (e) => { e.preventDefault(); adjustPayCount('black', -1); });
+  document.getElementById('pay-b-plus').addEventListener('pointerdown', (e) => { e.preventDefault(); adjustPayCount('black', 1); });
+  document.getElementById('pay-w-minus').addEventListener('pointerdown', (e) => { e.preventDefault(); adjustPayCount('white', -1); });
+  document.getElementById('pay-w-plus').addEventListener('pointerdown', (e) => { e.preventDefault(); adjustPayCount('white', 1); });
+  document.getElementById('pay-q-minus').addEventListener('pointerdown', (e) => { e.preventDefault(); adjustPayCount('queen', -1); });
+  document.getElementById('pay-q-plus').addEventListener('pointerdown', (e) => { e.preventDefault(); adjustPayCount('queen', 1); });
+
+  document.getElementById('btn-open-buy').addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    if (state.phase !== 'IDLE' || !state.canBuyThisTurn || areAllPlotsBought()) return;
+    sfx.tap();
+    const buyer = (state.gameMode === '2P' && state.turn === 2) ? 2 : 1;
+    openBuyModal(buyer, false);
+  });
+
+  document.getElementById('btn-buy-close').addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    if (state.buyForced) return;
+    sfx.tap();
+    buyBackdrop.classList.remove('open');
+  });
+
+  // Note: "Whenever a player buys a plot any piece already on it is NOT given to the player
+  // only those piece that MOVES and then END UP on the plot is given to the player."
+  document.getElementById('btn-confirm-buy').addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    const plot = PLOTS.find(p => p.id === state.selectedPlotId);
+    if (!plot || plot.owner !== 0) return;
+
+    const buyer = state.buyModalBuyer;
+    const selectedSum = state.paySelect.black * 10 + state.paySelect.white * 20 + state.paySelect.queen * 50;
+    if (selectedSum !== plot.cost) return;
+
+    sfx.pocket(true, false);
+    plot.owner = buyer;
+    syncPlotVisuals();
+
+    transferPlayerCoinsToBoard(buyer, state.paySelect);
+
+    buyBackdrop.classList.remove('open');
+    state.buyForced = false;
+    updateUI();
+
+    const buyerName = buyer === 1 ? 'P1' : (state.gameMode === '2P' ? 'P2' : 'AI');
+    showToast(`${buyerName} BOUGHT ${plot.name}!`);
+    placeStrikerOnBaseline();
+
+    if (state.phase === 'FORCED_BUY') {
+      if (state.turn === 2 && state.gameMode === 'AI') {
+        runAITurn();
+      } else {
+        state.phase = 'IDLE';
+        updateUI();
+      }
+    }
+  });
+
+  function executeAIBuyIfPossible(isForced = false) {
+    if (areAllPlotsBought()) return false;
+    const tier = getActivePlotTier();
+    const cost = [50, 100, 150][tier];
+    if (getPlayerNetScore(2) < cost) return false;
+
+    const availPlots = PLOTS.filter(p => p.tier === tier && p.owner === 0);
+    if (availPlots.length === 0) return false;
+
+    const sub = ensureExactChangeForPlayer(2, cost);
+    if (!sub) return false;
+
+    const chosenPlot = availPlots[Math.floor(Math.random() * availPlots.length)];
+    chosenPlot.owner = 2;
+    syncPlotVisuals();
+    transferPlayerCoinsToBoard(2, sub);
+    sfx.pocket(true, false);
+    updateUI();
+
+    showToast(isForced ? `AI FORCED BUY: ${chosenPlot.name}!` : `AI BOUGHT ${chosenPlot.name}!`);
+    return true;
+  }
+
+  // Bankrupt Sell Plot / Forfeit Controller
+  function openBankruptSellModal(bankruptPlayer) {
+    state.sellModalPlayer = bankruptPlayer;
+    const ownedPlots = PLOTS.filter(p => p.owner === bankruptPlayer);
+    if (ownedPlots.length === 0) {
+      declareWinner(3 - bankruptPlayer, 'OPPONENT BANKRUPT & NO PLOTS LEFT!');
+      return;
+    }
+    state.selectedSellPlotId = ownedPlots[0].id;
+    renderSellModal();
+    sellBackdrop.classList.add('open');
+  }
+
+  function renderSellModal() {
+    const p = state.sellModalPlayer;
+    const pName = p === 1 ? 'P1' : (state.gameMode === '2P' ? 'P2' : 'AI');
+    document.getElementById('sell-modal-title').textContent = `${pName} BANKRUPT // SELL PLOT OR FORFEIT`;
+
+    const ownedPlots = PLOTS.filter(pl => pl.owner === p);
+    const grid = document.getElementById('sell-plot-grid');
+    grid.innerHTML = '';
+
+    const selPlot = PLOTS.find(pl => pl.id === state.selectedSellPlotId);
+    document.getElementById('sell-value-label').textContent = selPlot ? `SELL FOR: ${selPlot.cost}` : 'SELECT PLOT';
+
+    ownedPlots.forEach((pl) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'plot-card' + (state.selectedSellPlotId === pl.id ? ' selected' : '');
+      btn.innerHTML = `<span class="plot-card-name">${pl.name}</span><span class="plot-card-status">SELL VALUE: ${pl.cost}</span>`;
+      btn.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        sfx.tap();
+        state.selectedSellPlotId = pl.id;
+        renderSellModal();
+      });
+      grid.appendChild(btn);
+    });
+  }
+
+  function executePlotSaleAndEqualStake(bankruptPlayer, plot) {
+    const richPlayer = 3 - bankruptPlayer;
+    // 1. Plot is sold to the other player
+    plot.owner = richPlayer;
+    syncPlotVisuals();
+
+    // 2. Bankrupt player gets the exact amount of money (plot.cost) from the other player
+    transferCoinsPlayerToPlayer(richPlayer, bankruptPlayer, plot.cost);
+
+    // Clear any foul debt if applicable
+    if (state.debt[bankruptPlayer] > 0) {
+      settlePlayerDebt(bankruptPlayer);
+    }
+
+    // 3. Both players place equal amount of money (whoever has the least) on the middle of the board!
+    const m1 = getPlayerMoney(1);
+    const m2 = getPlayerMoney(2);
+    const stake = Math.min(m1, m2);
+    if (stake > 0) {
+      const sub1 = ensureExactChangeForPlayer(1, stake);
+      if (sub1) transferPlayerCoinsToBoard(1, sub1);
+      const sub2 = ensureExactChangeForPlayer(2, stake);
+      if (sub2) transferPlayerCoinsToBoard(2, sub2);
+    }
+
+    sfx.pocket(true, false);
+    updateUI();
+    const sName = bankruptPlayer === 1 ? 'P1' : (state.gameMode === '2P' ? 'P2' : 'AI');
+    showToast(`${sName} SOLD ${plot.name} (${plot.cost}) // EACH STAKES ${stake}!`, 2600);
+  }
+
+  document.getElementById('btn-confirm-sell').addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    const p = state.sellModalPlayer;
+    const plot = PLOTS.find(pl => pl.id === state.selectedSellPlotId && pl.owner === p);
+    if (!plot) return;
+
+    sellBackdrop.classList.remove('open');
+    executePlotSaleAndEqualStake(p, plot);
+    placeStrikerOnBaseline();
+
+    if (state.turn === 2 && state.gameMode === 'AI') {
+      runAITurn();
+    } else {
+      state.phase = 'IDLE';
+      updateUI();
+    }
+  });
+
+  document.getElementById('btn-forfeit').addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    sfx.pocket(false, true);
+    sellBackdrop.classList.remove('open');
+    const winner = 3 - state.sellModalPlayer;
+    declareWinner(winner, 'BY FORFEIT!');
+  });
+
+  function declareWinner(winnerPlayer, reason) {
+    state.phase = 'GAME_OVER';
+    const wName = winnerPlayer === 1 ? 'P1' : (state.gameMode === '2P' ? 'P2' : 'AI');
+    showToast(`${wName} WINS MATCH (${reason})`, 3600);
+    setTimeout(() => resetMatch(), 3700);
+  }
+
+  // =========================================================================
+  // 12. STRIKER PLACEMENT, AIMING & SHOT EXECUTION
+  // =========================================================================
+  function isBaselineSpotClear(xWorld, zWorld) {
+    const minDist = STRIKER_RADIUS + COIN_RADIUS + 0.06;
+    for (let i = 0; i < coins.length; i++) {
+      const c = coins[i];
+      if (c.pocketed) continue;
+      if (c.pos.y > COIN_RADIUS * 1.6) continue;
+      const dx = c.pos.x - xWorld;
+      const dz = c.pos.z - zWorld;
+      if (dx * dx + dz * dz < minDist * minDist) return false;
+    }
+    return true;
+  }
+
+  function placeStrikerOnBaseline() {
+    const zLine = state.turn === 1 ? BASELINE_Z : -BASELINE_Z;
+    const xDir = state.turn === 1 ? 1 : -1;
+    let targetX = state.strikerX * BASELINE_SPAN * xDir;
+
+    let clear = isBaselineSpotClear(targetX, zLine);
+    if (!clear) {
+      for (let s = 1; s <= 32; s++) {
+        const off = s * 0.34;
+        if (Math.abs(targetX + off) <= BASELINE_SPAN && isBaselineSpotClear(targetX + off, zLine)) {
+          targetX += off;
+          clear = true;
+          break;
+        }
+        if (Math.abs(targetX - off) <= BASELINE_SPAN && isBaselineSpotClear(targetX - off, zLine)) {
+          targetX -= off;
+          clear = true;
+          break;
+        }
+      }
+    }
+
+    striker.resetUpright(targetX, STRIKER_HALF_H, zLine, 0, false);
+
+    const dx = -striker.pos.x;
+    const dz = -striker.pos.z;
+    const len = Math.hypot(dx, dz) || 1;
+    state.aimDirX = dx / len;
+    state.aimDirZ = dz / len;
+
+    const track = document.getElementById('slider-track');
+    const thumb = document.getElementById('slider-thumb');
+    const norm = (state.strikerX + 1) * 0.5;
+    const trackW = Math.max(60, track.clientWidth - 40);
+    thumb.style.left = `${20 + norm * trackW}px`;
+    thumb.classList.toggle('blocked', !clear);
+
+    updateAimGuide();
+  }
+
+  function getPowerColorHex(pwr) {
+    if (pwr < 0.40) return 0x00e5ff;
+    if (pwr < 0.72) return 0xffbe0b;
+    return 0xff1744;
+  }
+
+  function updateAimGuide(animatePulse = 0) {
+    const show = state.phase === 'IDLE' && state.inputMode === 'STRIKE' && (state.turn === 1 || state.gameMode === '2P');
+    aimGroup.visible = show;
+    if (!show) return;
+
+    const sx = striker.pos.x;
+    const sz = striker.pos.z;
+    const dirX = state.aimDirX;
+    const dirZ = state.aimDirZ;
+
+    if (state.shotCancelled) {
+      pwrInnerRing.position.set(sx, 0.03, sz);
+      pwrInnerRing.scale.set(0.75, 0.75, 1);
+      pwrInnerMat.color.setHex(0x71717a);
+      pwrOuterRing.visible = false;
+      pullBandLine.visible = false;
+      pullHandle.visible = false;
+      ghostRing.visible = false;
+      deflectLine.visible = false;
+      dashMeshes.forEach(d => { d.visible = false; });
+      return;
+    }
+
+    const pwr = state.aimPower;
+    const colHex = getPowerColorHex(pwr);
+    const pulse = 1.0 + Math.sin(animatePulse * 14.0) * (pwr * 0.06);
+
+    pwrInnerRing.position.set(sx, 0.03, sz);
+    const scInner = (0.85 + pwr * 0.75) * pulse;
+    pwrInnerRing.scale.set(scInner, scInner, 1);
+    pwrInnerMat.color.setHex(colHex);
+
+    pwrOuterRing.visible = true;
+    pwrOuterRing.position.set(sx, 0.025, sz);
+    const scOuter = (0.90 + pwr * 0.95) / pulse;
+    pwrOuterRing.scale.set(scOuter, scOuter, 1);
+
+    const pullLen = Math.min(3.6, Math.max(0.6, state.pullDist));
+    const hx = sx - dirX * pullLen;
+    const hz = sz - dirZ * pullLen;
+
+    pullBandLine.visible = true;
+    const bArr = pullBandGeo.attributes.position.array;
+    bArr[0] = sx; bArr[1] = 0.15; bArr[2] = sz;
+    bArr[3] = hx; bArr[4] = 0.15; bArr[5] = hz;
+    pullBandGeo.attributes.position.needsUpdate = true;
+
+    pullHandle.visible = true;
+    pullHandle.position.set(hx, 0.15, hz);
+    pullHandle.rotation.y = Math.atan2(dirX, dirZ);
+    pullHandleMat.color.setHex(colHex);
+
+    let bestT = 18.0;
+    let hitCoin = null;
+    const sumR = STRIKER_RADIUS + COIN_RADIUS;
+
+    for (let i = 0; i < coins.length; i++) {
+      const c = coins[i];
+      if (c.pocketed || c.pos.y > COIN_RADIUS * 1.5) continue;
+      const ocx = c.pos.x - sx;
+      const ocz = c.pos.z - sz;
+      const proj = ocx * dirX + ocz * dirZ;
+      if (proj <= 0) continue;
+      const perpSq = (ocx * ocx + ocz * ocz) - proj * proj;
+      if (perpSq < sumR * sumR) {
+        const t = proj - Math.sqrt(sumR * sumR - perpSq);
+        if (t > 0 && t < bestT) {
+          bestT = t;
+          hitCoin = c;
+        }
+      }
+    }
+
+    const wallX = dirX > 1e-4 ? (BOARD_HALF - STRIKER_RADIUS - sx) / dirX
+      : (dirX < -1e-4 ? (-BOARD_HALF + STRIKER_RADIUS - sx) / dirX : 99);
+    const wallZ = dirZ > 1e-4 ? (BOARD_HALF - STRIKER_RADIUS - sz) / dirZ
+      : (dirZ < -1e-4 ? (-BOARD_HALF + STRIKER_RADIUS - sz) / dirZ : 99);
+    const wallT = Math.min(wallX, wallZ);
+    if (wallT < bestT) {
+      bestT = Math.max(0.2, wallT);
+      hitCoin = null;
+    }
+
+    const gx = sx + dirX * bestT;
+    const gz = sz + dirZ * bestT;
+
+    const yaw = Math.atan2(dirX, dirZ);
+    const marchOffset = (animatePulse * 2.2) % 1.0;
+    for (let i = 0; i < NUM_DASHES; i++) {
+      const dm = dashMeshes[i];
+      const frac = (i + marchOffset) / NUM_DASHES;
+      const dist = frac * bestT;
+      if (dist < STRIKER_RADIUS * 1.2 || dist > bestT - STRIKER_RADIUS * 0.6) {
+        dm.visible = false;
+      } else {
+        dm.visible = true;
+        dm.position.set(sx + dirX * dist, 0.08, sz + dirZ * dist);
+        dm.rotation.y = yaw;
+        dm.material.color.setHex(i % 2 === 0 ? colHex : 0x121216);
+      }
+    }
+
+    ghostRing.visible = true;
+    ghostRing.position.set(gx, 0.035, gz);
+    ghostMat.color.setHex(colHex);
+
+    if (hitCoin) {
+      deflectLine.visible = true;
+      const nx = (hitCoin.pos.x - gx) / sumR;
+      const nz = (hitCoin.pos.z - gz) / sumR;
+      const dArr = deflectGeo.attributes.position.array;
+      dArr[0] = hitCoin.pos.x;
+      dArr[1] = 0.16;
+      dArr[2] = hitCoin.pos.z;
+      dArr[3] = hitCoin.pos.x + nx * (4.2 * pwr);
+      dArr[4] = 0.16;
+      dArr[5] = hitCoin.pos.z + nz * (4.2 * pwr);
+      deflectGeo.attributes.position.needsUpdate = true;
+    } else {
+      deflectLine.visible = false;
+    }
+  }
+
+  function updatePowerHUD() {
+    const lbl = document.getElementById('power-label');
+    const val = document.getElementById('power-val');
+    const fill = document.getElementById('power-fill');
+
+    if (state.shotCancelled) {
+      lbl.textContent = 'NEAR STRIKER';
+      val.textContent = 'CANCEL';
+      fill.style.width = '0%';
+      fill.style.backgroundColor = '#71717a';
+      return;
+    }
+
+    const pct = Math.round(state.aimPower * 100);
+    lbl.textContent = 'STRIKE POWER';
+    val.textContent = `${pct}%`;
+    fill.style.width = `${Math.min(100, (state.aimPower / MAX_POWER_PCT) * 100)}%`;
+
+    if (state.aimPower < 0.40) fill.style.backgroundColor = '#00e5ff';
+    else if (state.aimPower < 0.72) fill.style.backgroundColor = '#ffb700';
+    else fill.style.backgroundColor = '#ff1744';
+  }
+
+  function launchStriker() {
+    if (state.phase !== 'IDLE' && state.phase !== 'AI_TURN') return;
+    sfx.init();
+    sfx.clack(1.0, 0.82);
+    sfx.vibrate(22);
+
+    // "Players can only buy at the start of the turn, using the striker ends the right to buy even if it results in a coin covered."
+    state.canBuyThisTurn = false;
+
+    // Record start-of-shot positions for all board pieces so only pieces that MOVE and END UP on a plot are captured!
+    for (let i = 0; i < coins.length; i++) {
+      const c = coins[i];
+      c.startShotPos.copy(c.pos);
+      c.movedThisShot = false;
+    }
+
+    const normPwr = state.aimPower / MAX_POWER_PCT;
+    const speed = 24.0 + normPwr * 78.0;
+    striker.vel.set(state.aimDirX * speed, 0, state.aimDirZ * speed);
+    striker.angVel.set(0, 0, 0);
+
+    state.pocketedEvents = [];
+    state.shotElapsed = 0;
+    state.settleFrames = 0;
+    state.phase = 'SIMULATING';
+    document.getElementById('power-hud').classList.remove('visible');
+    setInputMode('VIEW');
+    aimGroup.visible = false;
+    updateUI();
+  }
+
+  function runAITurn() {
+    clearTimeout(state.aiTimer);
+    state.phase = 'AI_TURN';
+    updateUI();
+
+    state.aiTimer = setTimeout(() => {
+      if (state.phase !== 'AI_TURN') return;
+
+      // AI can only buy at the start of its turn (`state.canBuyThisTurn === true`)
+      if (state.canBuyThisTurn && !areAllPlotsBought()) {
+        const tierCost = getCurrentTierCost();
+        if (getPlayerNetScore(2) >= tierCost) {
+          executeAIBuyIfPossible(false);
+        }
+      }
+
+      const poisedCoins = coins.filter(c => !c.pocketed && c.poised);
+      const targets = poisedCoins.length > 0
+        ? [poisedCoins[0]]
+        : coins.filter(c => !c.pocketed);
+
+      state.strikerX = (Math.random() - 0.5) * 0.45;
+      placeStrikerOnBaseline();
+
+      if (targets.length > 0) {
+        targets.sort((a, b) => b.value - a.value);
+        const target = targets[0];
+        const dx = target.pos.x - striker.pos.x + (Math.random() - 0.5) * 0.10;
+        const dz = target.pos.z - striker.pos.z;
+        const len = Math.hypot(dx, dz) || 1;
+        state.aimDirX = dx / len;
+        state.aimDirZ = dz / len;
+        state.aimPower = poisedCoins.length > 0 ? MAX_POWER_PCT : Math.min(MAX_POWER_PCT, 0.62 + Math.random() * 0.26);
+      } else {
+        state.aimDirX = 0;
+        state.aimDirZ = 1;
+        state.aimPower = 0.75;
+      }
+
+      state.aiTimer = setTimeout(() => {
+        if (state.phase === 'AI_TURN') {
+          launchStriker();
+        }
+      }, 380);
+    }, 520);
+  }
+
+  // =========================================================================
+  // 13. QUEEN COVER, FOUL DEBT, MOVED-PIECE PLOT CAPTURE & ENDGAME BANKRUPTCY
+  // =========================================================================
+  function evaluatePlotCapturesAndTurn() {
+    const shooter = state.turn;
+    const opp = shooter === 1 ? 2 : 1;
+    const wasPendingQueen = (state.pendingQueenFor === shooter);
+
+    let foulCount = 0;
+    let queenHoledUnbought = false;
+    let shooterNonQueenHoledCount = 0;
+    let shooterPlotCapturedCount = 0;
+    const coinsToReturnCenter = [];
+
+    // 1. Evaluate pieces pocketed into Holes during the shot
+    const holePlots = PLOTS.filter(p => p.tier === 2);
+    for (let i = 0; i < state.pocketedEvents.length; i++) {
+      const ev = state.pocketedEvents[i];
+      if (ev.coin.type === 'striker') {
+        foulCount++;
+        continue;
+      }
+
+      const holePlot = holePlots.find(hp => hp.pocketIdx === ev.pocketIdx);
+      const holeOwner = holePlot ? holePlot.owner : 0;
+
+      if (ev.coin.type === 'queen') {
+        if (holeOwner !== 0) {
+          // "if buyer holes any piece be it queen too in their plot or hole then it goes to them"
+          ev.coin.owner = holeOwner;
+          if (holeOwner === shooter) shooterNonQueenHoledCount++;
+        } else {
+          // Unbought hole -> Queen requires covering with a coin in a hole!
+          queenHoledUnbought = true;
+        }
+      } else {
+        const recipient = holeOwner !== 0 ? holeOwner : shooter;
+        ev.coin.owner = recipient;
+        if (recipient === shooter) {
+          shooterNonQueenHoledCount++;
+        }
+      }
+    }
+
+    // 2. Check all remaining un-pocketed pieces on the board that MOVED this shot and ENDED UP on a bought Line or Rectangle:
+    // "Whenever a player buys a plot any piece already on it is NOT given to the player
+    //  only those piece that MOVES and then END UP on the plot is given to the player."
+    const boughtLines = PLOTS.filter(p => p.tier === 0 && p.owner !== 0);
+    const boughtRects = PLOTS.filter(p => p.tier === 1 && p.owner !== 0);
+
+    if (boughtLines.length > 0 || boughtRects.length > 0) {
+      const touchLineRadSq = (COIN_RADIUS + 0.14) * (COIN_RADIUS + 0.14);
+      const touchRectRadSq = (COIN_RADIUS + 0.05) * (COIN_RADIUS + 0.05);
+
+      for (let i = 0; i < coins.length; i++) {
+        const c = coins[i];
+        if (c.pocketed || c.poised) continue;
+
+        // Must have actually moved during this shot!
+        const movedDist = Math.hypot(c.pos.x - c.startShotPos.x, c.pos.z - c.startShotPos.z);
+        if (!c.movedThisShot && movedDist < 0.06) continue;
+
+        let touchedP1 = false;
+        let touchedP2 = false;
+
+        for (let l = 0; l < boughtLines.length; l++) {
+          const lp = boughtLines[l];
+          const dSq = distToSegmentSq(c.pos.x, c.pos.z, lp.sx * 3.03, lp.sz * 3.03, lp.sx * 7.26, lp.sz * 7.26);
+          if (dSq <= touchLineRadSq) {
+            if (lp.owner === 1) touchedP1 = true;
+            if (lp.owner === 2) touchedP2 = true;
+          }
+        }
+
+        for (let r = 0; r < boughtRects.length; r++) {
+          const rp = boughtRects[r];
+          const dSq = distToRectSq(c.pos.x, c.pos.z, rp.minX, rp.maxX, rp.minZ, rp.maxZ);
+          if (dSq <= touchRectRadSq) {
+            if (rp.owner === 1) touchedP1 = true;
+            if (rp.owner === 2) touchedP2 = true;
+          }
+        }
+
+        // If simultaneously on both players' bought areas -> goes to no one!
+        if (touchedP1 && !touchedP2) {
+          c.pocketed = true;
+          c.owner = 1;
+          c.fallingPocket = null;
+          c.syncMesh();
+          if (shooter === 1) shooterPlotCapturedCount++;
+        } else if (touchedP2 && !touchedP1) {
+          c.pocketed = true;
+          c.owner = 2;
+          c.fallingPocket = null;
+          c.syncMesh();
+          if (shooter === 2) shooterPlotCapturedCount++;
+        }
+      }
+    }
+
+    // 3. Evaluate Queen Cover Rules & Foul Rules:
+    let keepTurn = false;
+    let nextPendingQueenFor = 0;
+
+    if (foulCount > 0) {
+      state.debt[shooter] += foulCount * 10;
+
+      if (queenHoledUnbought || wasPendingQueen) {
+        queenBody.owner = 0;
+        coinsToReturnCenter.push(queenBody);
+        showToast('FOUL WITH QUEEN // QUEEN & PENALTY ON BOARD!');
+      } else {
+        showToast(`STRIKER FOUL (-${foulCount * 10})!`);
+      }
+      keepTurn = false;
+      nextPendingQueenFor = 0;
+
+    } else if (wasPendingQueen) {
+      if (shooterNonQueenHoledCount > 0 && shooterPlotCapturedCount === 0) {
+        queenBody.owner = shooter;
+        keepTurn = true;
+        showToast('QUEEN COVERED (+50)!');
+      } else {
+        queenBody.owner = 0;
+        coinsToReturnCenter.push(queenBody);
+        keepTurn = false;
+        showToast('QUEEN NOT COVERED // PLACED IN MIDDLE');
+      }
+      nextPendingQueenFor = 0;
+
+    } else if (queenHoledUnbought) {
+      if (shooterPlotCapturedCount > 0) {
+        // "A queen is not covered by holing the queen and getting a piece on the plot
+        //  in that case the plot piece is acquired and queen is placed in the middle and end turn."
+        queenBody.owner = 0;
+        coinsToReturnCenter.push(queenBody);
+        keepTurn = false;
+        nextPendingQueenFor = 0;
+        showToast('PLOT PIECE ACQUIRED // QUEEN TO MIDDLE & TURN ENDS');
+      } else if (shooterNonQueenHoledCount > 0) {
+        queenBody.owner = shooter;
+        keepTurn = true;
+        nextPendingQueenFor = 0;
+        showToast('QUEEN & COVER HOLED (+50)!');
+      } else {
+        const otherCoinsOnBoard = coins.filter(c => !c.pocketed && c.type !== 'queen').length;
+        if (otherCoinsOnBoard > 0) {
+          keepTurn = true;
+          nextPendingQueenFor = shooter;
+          showToast('QUEEN HOLED // COVER IN HOLE NEXT SHOT!');
+        } else {
+          queenBody.owner = 0;
+          coinsToReturnCenter.push(queenBody);
+          keepTurn = false;
+          nextPendingQueenFor = 0;
+          showToast('NO COINS LEFT TO COVER QUEEN // RETURNED');
+        }
+      }
+    } else {
+      // "Whenever a player scores a coin by moving the piece to plot their turn ENDS.
+      //  only when the final piece by a player is scored in hole only then player gets another strike chance
+      //  and if it results like hole then on plot then turn ends."
+      if (shooterPlotCapturedCount > 0) {
+        keepTurn = false;
+        showToast('PLOT CAPTURED // TURN ENDS');
+      } else if (shooterNonQueenHoledCount > 0) {
+        keepTurn = true;
+        showToast('HOLED // EXTRA STRIKE');
+      } else {
+        keepTurn = false;
+      }
+    }
+
+    state.pendingQueenFor = nextPendingQueenFor;
+
+    if (coinsToReturnCenter.length > 0) {
+      placeCoinsInMiddleOfBoard(coinsToReturnCenter);
+    }
+
+    // 4. Settle any negative score / foul debt for both players immediately:
+    if (state.debt[1] > 0) settlePlayerDebt(1);
+    if (state.debt[2] > 0) settlePlayerDebt(2);
+
+    updateUI();
+
+    // 5. Advance Turn if keepTurn is false
+    if (state.gameMode === 'FREE') {
+      state.turn = 1;
+      state.canBuyThisTurn = true;
+    } else if (!keepTurn) {
+      state.turn = opp;
+      state.canBuyThisTurn = true; // Start of new turn -> right to buy unlocked!
+    } else {
+      // Continuing turn after holing -> using the striker already ended the right to buy for this turn!
+      state.canBuyThisTurn = false;
+    }
+
+    // 6. Check Empty-Board Rules!
+    const remainingOnBoard = coins.filter(c => !c.pocketed).length;
+    if (remainingOnBoard === 0) {
+      if (!areAllPlotsBought()) {
+        const cost = getCurrentTierCost();
+        const s1 = getPlayerNetScore(1);
+        const s2 = getPlayerNetScore(2);
+
+        if (s1 >= cost || s2 >= cost) {
+          let forcedBuyer = 1;
+          if (state.turn === 1 && s1 >= cost) forcedBuyer = 1;
+          else if (state.turn === 2 && s2 >= cost) forcedBuyer = 2;
+          else if (s1 >= cost) forcedBuyer = 1;
+          else forcedBuyer = 2;
+
+          if (forcedBuyer === 2 && state.gameMode === 'AI') {
+            executeAIBuyIfPossible(true);
+          } else {
+            state.phase = 'FORCED_BUY';
+            placeStrikerOnBaseline();
+            openBuyModal(forcedBuyer, true);
+            return;
+          }
+        } else {
+          const m1 = getPlayerMoney(1);
+          const m2 = getPlayerMoney(2);
+          const leastNeed = Math.min(cost - m1, cost - m2);
+          const contrib1 = Math.min(m1, Math.max(10, leastNeed));
+          const contrib2 = Math.min(m2, Math.max(10, leastNeed));
+
+          if (contrib1 > 0) {
+            const sub1 = ensureExactChangeForPlayer(1, contrib1);
+            if (sub1) transferPlayerCoinsToBoard(1, sub1);
+          }
+          if (contrib2 > 0) {
+            const sub2 = ensureExactChangeForPlayer(2, contrib2);
+            if (sub2) transferPlayerCoinsToBoard(2, sub2);
+          }
+          showToast(`BOTH SHORT! EACH PUTS ${leastNeed} ON BOARD`, 2400);
+          updateUI();
+        }
+      } else {
+        // Phase B: ALL 12 PLOTS UP TO HOLES ARE BOUGHT & ALL COINS ARE EMPTIED FROM THE BOARD!
+        const m1 = getPlayerMoney(1);
+        const m2 = getPlayerMoney(2);
+
+        if (m1 > 0 && m2 > 0) {
+          const equalStake = Math.min(m1, m2);
+          const sub1 = ensureExactChangeForPlayer(1, equalStake);
+          if (sub1) transferPlayerCoinsToBoard(1, sub1);
+          const sub2 = ensureExactChangeForPlayer(2, equalStake);
+          if (sub2) transferPlayerCoinsToBoard(2, sub2);
+          showToast(`ALL PLOTS SOLD // BOTH STAKE ${equalStake} ON BOARD!`, 2600);
+          updateUI();
+        } else {
+          const bankruptPlayer = m1 === 0 ? 1 : 2;
+          const ownedByBankrupt = PLOTS.filter(p => p.owner === bankruptPlayer);
+
+          if (ownedByBankrupt.length === 0) {
+            declareWinner(3 - bankruptPlayer, 'ALL PLOTS & MONEY WON!');
+            return;
+          }
+
+          if (bankruptPlayer === 2 && state.gameMode === 'AI') {
+            ownedByBankrupt.sort((a, b) => a.cost - b.cost);
+            executePlotSaleAndEqualStake(2, ownedByBankrupt[0]);
+          } else {
+            state.phase = 'BANKRUPT_SELL';
+            placeStrikerOnBaseline();
+            openBankruptSellModal(bankruptPlayer);
+            return;
+          }
+        }
+      }
+    }
+
+    placeStrikerOnBaseline();
+
+    if (state.turn === 2 && state.gameMode === 'AI') {
+      runAITurn();
+    } else {
+      state.phase = 'IDLE';
+      updateUI();
+    }
+  }
+
+  // =========================================================================
+  // 14. 12-SUBSTEP HIGH-VELOCITY 3D PHYSICS STEPPER
+  // =========================================================================
+  const _rotAxis = new THREE.Vector3();
+  const _rightAxis = new THREE.Vector3();
+
+  function wakeTowerWithBucklingWave(impactBody) {
+    const speed = impactBody.vel.length();
+    const dirX = speed > 1e-3 ? impactBody.vel.x / speed : 0;
+    const dirZ = speed > 1e-3 ? impactBody.vel.z / speed : -1;
+    const perpX = -dirZ;
+    const perpZ = dirX;
+
+    const poisedList = coins.filter(c => !c.pocketed && c.poised);
+    const n = poisedList.length;
+    for (let idx = 0; idx < n; idx++) {
+      const c = poisedList[idx];
+      c.poised = false;
+      c.movedThisShot = true;
+
+      const hNorm = idx / Math.max(1, n - 1);
+      const arch = Math.sin(hNorm * Math.PI);
+      const forwardWhip = speed * 0.20 * arch;
+      const lateralScatter = speed * 0.09 * Math.cos(idx * 0.75);
+
+      c.vel.x += dirX * forwardWhip + perpX * lateralScatter;
+      c.vel.z += dirZ * forwardWhip + perpZ * lateralScatter;
+      c.angVel.x += perpX * (15.0 * (0.5 - hNorm));
+      c.angVel.z += perpZ * (15.0 * (0.5 - hNorm));
+    }
+  }
+
+  function stepPhysics(dtFrame) {
+    if (state.phase !== 'SIMULATING') return;
+
+    state.shotElapsed += dtFrame;
+    const dampBoost = 1.0 + Math.max(0.0, (state.shotElapsed - 1.8) * 4.5);
+
+    const SUBSTEPS = 12;
+    const dt = Math.min(dtFrame, 0.025) / SUBSTEPS;
+    const gravity = -42.0;
+    let soundBudget = 3;
+
+    for (let s = 0; s < SUBSTEPS; s++) {
+      for (let i = 0; i < bodies.length; i++) {
+        const b = bodies[i];
+        if (b.pocketed) {
+          if (b.fallingPocket) {
+            b.fallTimer += dt;
+            b.pos.x += (b.fallingPocket.x - b.pos.x) * 14 * dt;
+            b.pos.z += (b.fallingPocket.y - b.pos.z) * 14 * dt;
+            b.pos.y -= 11.0 * dt;
+            if (b.fallTimer > 0.20) b.fallingPocket = null;
+          }
+          continue;
+        }
+        if (b.poised) continue;
+
+        b.vel.y += gravity * dt;
+
+        const speedSq = b.vel.lengthSq();
+        if (speedSq > 0.08 && b.type !== 'striker') {
+          b.movedThisShot = true;
+        }
+        const maxSpeed = 105.0;
+        if (speedSq > maxSpeed * maxSpeed) {
+          b.vel.multiplyScalar(maxSpeed / Math.sqrt(speedSq));
+        }
+
+        b.pos.addScaledVector(b.vel, dt);
+
+        const wLen = b.angVel.length();
+        if (wLen > 1e-5) {
+          const th = wLen * dt;
+          _rotAxis.copy(b.angVel).multiplyScalar(1.0 / wLen);
+          b.u.applyAxisAngle(_rotAxis, th).normalize();
+          b.spinYaw += b.angVel.dot(b.u) * dt;
+        }
+      }
+
+      if (coins.some(c => !c.pocketed && c.poised)) {
+        for (let i = 0; i < coins.length; i++) {
+          const c = coins[i];
+          if (c.pocketed || !c.poised) continue;
+          const dx = striker.pos.x - c.pos.x;
+          const dy = striker.pos.y - c.pos.y;
+          const dz = striker.pos.z - c.pos.z;
+          const reach = striker.radius + c.radius + 0.12;
+          if (dx * dx + dy * dy + dz * dz <= reach * reach) {
+            wakeTowerWithBucklingWave(striker);
+            break;
+          }
+        }
+      }
+
+      for (let i = 0; i < bodies.length; i++) {
+        const b = bodies[i];
+        if (b.pocketed || b.poised) continue;
+        if (b.pos.y < COIN_RADIUS * 1.35) {
+          for (let pIdx = 0; pIdx < 4; pIdx++) {
+            const pk = POCKETS[pIdx];
+            const dx = b.pos.x - pk.x;
+            const dz = b.pos.z - pk.y;
+            if (dx * dx + dz * dz < (POCKET_RADIUS * 0.86) * (POCKET_RADIUS * 0.86)) {
+              b.pocketed = true;
+              b.fallingPocket = pk;
+              b.fallTimer = 0;
+              state.pocketedEvents.push({ coin: b, pocketIdx: pIdx });
+              sfx.pocket(b.type === 'queen', b.type === 'striker');
+              break;
+            }
+          }
+        }
+      }
+
+      for (let iter = 0; iter < 3; iter++) {
+        for (let i = 0; i < bodies.length; i++) {
+          const b = bodies[i];
+          if (b.pocketed || b.poised) continue;
+
+          const uy = Math.max(-1.0, Math.min(1.0, b.u.y));
+          const absUy = Math.abs(uy);
+          const extY = b.halfH * absUy + b.radius * Math.sqrt(Math.max(0.0, 1.0 - uy * uy));
+          const yMin = b.pos.y - extY;
+
+          if (yMin < 0.0) {
+            b.pos.y -= yMin;
+            if (b.vel.y < 0.0) {
+              b.vel.y = -b.vel.y * (-b.vel.y > 2.0 ? 0.22 : 0.0);
+            }
+
+            if (iter === 0) {
+              if (absUy < 0.985) {
+                const signY = uy >= 0 ? 1.0 : -1.0;
+                _rightAxis.set(-b.u.z * signY, 0, b.u.x * signY);
+                const rLen = _rightAxis.length();
+                if (rLen > 1e-5) {
+                  b.angVel.addScaledVector(_rightAxis.multiplyScalar(1.0 / rLen), (26.0 * dampBoost) * dt);
+                }
+              } else {
+                b.u.set(0, uy >= 0 ? 1.0 : -1.0, 0);
+                b.angVel.x = 0;
+                b.angVel.z = 0;
+                b.pos.y = b.halfH;
+              }
+
+              const drag = Math.max(0.0, 1.0 - 1.85 * dampBoost * dt);
+              b.vel.x *= drag;
+              b.vel.z *= drag;
+              b.angVel.multiplyScalar(Math.max(0.0, 1.0 - 6.5 * dampBoost * dt));
+            }
+          }
+
+          const effR = b.halfH * Math.sqrt(Math.max(0.0, 1.0 - uy * uy)) + b.radius * absUy;
+          const lim = BOARD_HALF - effR;
+
+          if (b.pos.x > lim) {
+            b.pos.x = lim;
+            if (b.vel.x > 0) {
+              if (iter === 0 && soundBudget > 0 && b.vel.x > 2.0) { sfx.rail(b.vel.x / 25); soundBudget--; }
+              b.vel.x = -b.vel.x * 0.84;
+            }
+          } else if (b.pos.x < -lim) {
+            b.pos.x = -lim;
+            if (b.vel.x < 0) {
+              if (iter === 0 && soundBudget > 0 && -b.vel.x > 2.0) { sfx.rail(-b.vel.x / 25); soundBudget--; }
+              b.vel.x = -b.vel.x * 0.84;
+            }
+          }
+
+          if (b.pos.z > lim) {
+            b.pos.z = lim;
+            if (b.vel.z > 0) {
+              if (iter === 0 && soundBudget > 0 && b.vel.z > 2.0) { sfx.rail(b.vel.z / 25); soundBudget--; }
+              b.vel.z = -b.vel.z * 0.84;
+            }
+          } else if (b.pos.z < -lim) {
+            b.pos.z = -lim;
+            if (b.vel.z < 0) {
+              if (iter === 0 && soundBudget > 0 && -b.vel.z > 2.0) { sfx.rail(-b.vel.z / 25); soundBudget--; }
+              b.vel.z = -b.vel.z * 0.84;
+            }
+          }
+        }
+
+        for (let i = 0; i < bodies.length; i++) {
+          const A = bodies[i];
+          if (A.pocketed) continue;
+          for (let j = i + 1; j < bodies.length; j++) {
+            const B = bodies[j];
+            if (B.pocketed) continue;
+            if (A.poised && B.poised) continue;
+
+            const pen = testCylinderSAT(A, B);
+            if (pen <= 0) continue;
+
+            A.poised = false;
+            B.poised = false;
+            if (A.type !== 'striker') A.movedThisShot = true;
+            if (B.type !== 'striker') B.movedThisShot = true;
+
+            const nx = _satNormal.x, ny = _satNormal.y, nz = _satNormal.z;
+            const totIM = A.invMass + B.invMass;
+
+            const ca = pen * (A.invMass / totIM);
+            const cb = pen * (B.invMass / totIM);
+            A.pos.x -= nx * ca; A.pos.y -= ny * ca; A.pos.z -= nz * ca;
+            B.pos.x += nx * cb; B.pos.y += ny * cb; B.pos.z += nz * cb;
+
+            if (iter === 0 && (Math.abs(A.u.y) < 0.90 || Math.abs(B.u.y) < 0.90)) {
+              const hx = B.pos.x - A.pos.x;
+              const hz = B.pos.z - A.pos.z;
+              const hLen = Math.hypot(hx, hz);
+              if (hLen > 1e-4) {
+                const push = 4.0 * dt / hLen;
+                A.vel.x -= hx * push; A.vel.z -= hz * push;
+                B.vel.x += hx * push; B.vel.z += hz * push;
+              }
+            }
+
+            computeContactPoint(A, B, nx, ny, nz);
+            _rA.subVectors(_contactPt, A.pos);
+            _rB.subVectors(_contactPt, B.pos);
+
+            _vA.crossVectors(A.angVel, _rA).add(A.vel);
+            _vB.crossVectors(B.angVel, _rB).add(B.vel);
+            _vRel.subVectors(_vB, _vA);
+
+            const vn = _vRel.x * nx + _vRel.y * ny + _vRel.z * nz;
+            if (vn < 0) {
+              if (iter === 0 && -vn > 1.5 && soundBudget > 0) {
+                sfx.clack(Math.min(1.0, -vn / 22.0), (A.type === 'striker' || B.type === 'striker') ? 0.88 : 1.12);
+                soundBudget--;
+              }
+
+              _rnA.crossVectors(_rA, _satNormal);
+              _rnB.crossVectors(_rB, _satNormal);
+              const denom = totIM + A.invI * _rnA.lengthSq() + B.invI * _rnB.lengthSq();
+              const e = (-vn > 1.2) ? 0.86 : 0.15;
+              const jImp = -(1.0 + e) * vn / denom;
+
+              _imp.set(nx * jImp, ny * jImp, nz * jImp);
+              A.vel.addScaledVector(_imp, -A.invMass);
+              B.vel.addScaledVector(_imp, B.invMass);
+
+              _rnA.crossVectors(_rA, _imp);
+              _rnB.crossVectors(_rB, _imp);
+              A.angVel.addScaledVector(_rnA, -A.invI);
+              B.angVel.addScaledVector(_rnB, B.invI);
+
+              _tang.copy(_vRel).addScaledVector(_satNormal, -vn);
+              const tLen = _tang.length();
+              if (tLen > 1e-5) {
+                _tang.multiplyScalar(1.0 / tLen);
+                const jt = Math.min(0.30 * jImp, (tLen / denom) * 0.5);
+                _imp.copy(_tang).multiplyScalar(-jt);
+                A.vel.addScaledVector(_imp, -A.invMass);
+                B.vel.addScaledVector(_imp, B.invMass);
+                _rnA.crossVectors(_rA, _imp);
+                _rnB.crossVectors(_rB, _imp);
+                A.angVel.addScaledVector(_rnA, -A.invI);
+                B.angVel.addScaledVector(_rnB, B.invI);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    let activeMotion = 0;
+    for (let i = 0; i < bodies.length; i++) {
+      const b = bodies[i];
+      b.syncMesh();
+      if (b.pocketed) {
+        if (b.fallingPocket) activeMotion++;
+        continue;
+      }
+      if (b.poised) continue;
+
+      const vSq = b.vel.lengthSq();
+      const wSq = b.angVel.lengthSq();
+      if (vSq > 0.02 || wSq > 0.08) {
+        activeMotion++;
+      } else {
+        b.vel.set(0, 0, 0);
+        b.angVel.set(0, 0, 0);
+      }
+    }
+
+    if (activeMotion === 0 || state.shotElapsed >= 3.8) {
+      if (state.shotElapsed >= 3.8) {
+        for (let i = 0; i < bodies.length; i++) {
+          const b = bodies[i];
+          if (!b.pocketed && !b.poised) {
+            b.vel.set(0, 0, 0);
+            b.angVel.set(0, 0, 0);
+            if (Math.abs(b.u.y) < 0.98) {
+              b.u.set(0, 1, 0);
+              b.pos.y = b.halfH;
+            }
+            b.syncMesh();
+          }
+        }
+      }
+      state.settleFrames++;
+      if (state.settleFrames >= 8 || state.shotElapsed >= 3.8) {
+        evaluatePlotCapturesAndTurn();
+      }
+    } else {
+      state.settleFrames = 0;
+    }
+  }
+
+  // =========================================================================
+  // 15. CAMERA ORBIT, PAN, +20% ZOOM OUT & UNCONVENTIONAL-ANGLE STRIKE AIMING
+  // =========================================================================
+  const camTarget = new THREE.Vector3(0, 0.8, 0);
+  const camGoal = new THREE.Vector3();
+
+  function applyPanDelta(screenDX, screenDY) {
+    const cosY = Math.cos(state.camYaw);
+    const sinY = Math.sin(state.camYaw);
+    const panScale = 0.032 * state.camZoom;
+    state.panTarget.x -= (screenDX * cosY + screenDY * sinY) * panScale;
+    state.panTarget.z -= (-screenDX * sinY + screenDY * cosY) * panScale;
+    state.panTarget.x = Math.max(-16.0, Math.min(16.0, state.panTarget.x));
+    state.panTarget.z = Math.max(-16.0, Math.min(16.0, state.panTarget.z));
+  }
+
+  function updateCamera(dt) {
+    const w = Math.max(1, window.innerWidth);
+    const h = Math.max(1, window.innerHeight);
+    const aspect = w / h;
+
+    const aspectScale = aspect < 0.85 ? (0.85 / Math.max(0.42, aspect)) * 0.94 : 1.0;
+    const radius = 31.0 * state.camZoom * aspectScale;
+
+    const pitch = Math.max(0.24, Math.min(1.44, state.camPitch));
+    const horizDist = radius * Math.cos(pitch);
+    const height = radius * Math.sin(pitch);
+
+    camTarget.lerp(state.panTarget, Math.min(1.0, dt * 14.0));
+
+    camGoal.set(
+      camTarget.x + Math.sin(state.camYaw) * horizDist,
+      camTarget.y + height,
+      camTarget.z + Math.cos(state.camYaw) * horizDist
+    );
+
+    camera.position.lerp(camGoal, Math.min(1.0, dt * 14.0));
+    camera.lookAt(camTarget);
+  }
+
+  const pointers = new Map();
+  let dragStartScreen = { x: 0, y: 0 };
+  let isAimingShot = false;
+  let lastPinchDist = 0;
+  let lastPinchMid = { x: 0, y: 0 };
+
+  canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+  canvas.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    sfx.init();
+    canvas.setPointerCapture(e.pointerId);
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, button: e.button });
+
+    if (pointers.size === 2) {
+      isAimingShot = false;
+      document.getElementById('power-hud').classList.remove('visible');
+      const pts = Array.from(pointers.values());
+      lastPinchDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+      lastPinchMid.x = (pts[0].x + pts[1].x) * 0.5;
+      lastPinchMid.y = (pts[0].y + pts[1].y) * 0.5;
+      return;
+    }
+
+    if (pointers.size === 1 && state.inputMode === 'STRIKE' && state.phase === 'IDLE' && e.button === 0) {
+      isAimingShot = true;
+      dragStartScreen.x = e.clientX;
+      dragStartScreen.y = e.clientY;
+      state.shotCancelled = true;
+      state.pullDist = 0;
+      document.getElementById('power-hud').classList.add('visible');
+      updatePowerHUD();
+      updateAimGuide();
+    }
+  }, { passive: false });
+
+  canvas.addEventListener('pointermove', (e) => {
+    if (!pointers.has(e.pointerId)) return;
+    const prev = pointers.get(e.pointerId);
+    const dx = e.clientX - prev.x;
+    const dy = e.clientY - prev.y;
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, button: prev.button });
+
+    if (pointers.size === 2) {
+      const pts = Array.from(pointers.values());
+      const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+      const midX = (pts[0].x + pts[1].x) * 0.5;
+      const midY = (pts[0].y + pts[1].y) * 0.5;
+
+      if (lastPinchDist > 10) {
+        state.camZoom = Math.max(0.62, Math.min(1.70, state.camZoom * (lastPinchDist / Math.max(10, dist))));
+      }
+      applyPanDelta(midX - lastPinchMid.x, midY - lastPinchMid.y);
+
+      lastPinchDist = dist;
+      lastPinchMid.x = midX;
+      lastPinchMid.y = midY;
+      return;
+    }
+
+    if ((state.inputMode === 'PAN' || prev.button === 1 || prev.button === 2) && pointers.size === 1) {
+      applyPanDelta(dx, dy);
+      return;
+    }
+
+    if (state.inputMode === 'VIEW' && pointers.size === 1) {
+      state.camYaw -= dx * 0.0075;
+      state.camPitch = Math.max(0.24, Math.min(1.44, state.camPitch + dy * 0.006));
+      return;
+    }
+
+    if (state.inputMode === 'STRIKE' && isAimingShot && pointers.size === 1 && state.phase === 'IDLE') {
+      const totalScreenDX = e.clientX - dragStartScreen.x;
+      const totalScreenDY = e.clientY - dragStartScreen.y;
+
+      const cosY = Math.cos(state.camYaw);
+      const sinY = Math.sin(state.camYaw);
+
+      const scaleToBoard = 4.2 / Math.max(240, Math.min(window.innerWidth, window.innerHeight));
+      const dragBoardX = (totalScreenDX * cosY + totalScreenDY * sinY) * scaleToBoard;
+      const dragBoardZ = (-totalScreenDX * sinY + totalScreenDY * cosY) * scaleToBoard;
+
+      const pullLen = Math.hypot(dragBoardX, dragBoardZ);
+      state.pullDist = pullLen;
+
+      if (pullLen < CANCEL_PULL_DIST) {
+        state.shotCancelled = true;
+        updatePowerHUD();
+        updateAimGuide();
+        return;
+      }
+
+      state.shotCancelled = false;
+
+      // Strike is ALWAYS strictly opposite to the direction in which the player drags
+      state.aimDirX = -dragBoardX / pullLen;
+      state.aimDirZ = -dragBoardZ / pullLen;
+
+      const activePull = (pullLen - CANCEL_PULL_DIST) / 2.65;
+      state.aimPower = Math.max(0.12, Math.min(MAX_POWER_PCT, 0.12 + activePull * (MAX_POWER_PCT - 0.12)));
+
+      updatePowerHUD();
+      updateAimGuide();
+    }
+  }, { passive: false });
+
+  canvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    state.camZoom = Math.max(0.62, Math.min(1.70, state.camZoom + e.deltaY * 0.001));
+  }, { passive: false });
+
+  function onPointerUp(e) {
+    pointers.delete(e.pointerId);
+    if (isAimingShot && pointers.size === 0) {
+      isAimingShot = false;
+      document.getElementById('power-hud').classList.remove('visible');
+      if (state.inputMode === 'STRIKE' && state.phase === 'IDLE') {
+        if (state.shotCancelled) {
+          sfx.tap();
+          showToast('SHOT CANCELLED');
+          state.shotCancelled = false;
+          updateAimGuide();
+        } else {
+          launchStriker();
+        }
+      }
+    }
+  }
+
+  canvas.addEventListener('pointerup', onPointerUp);
+  canvas.addEventListener('pointercancel', onPointerUp);
+
+  // =========================================================================
+  // 16. BOTTOM DOCK & MENU CONTROLS
+  // =========================================================================
+  const sliderTrack = document.getElementById('slider-track');
+  let isSlidingBaseline = false;
+
+  function updateBaselineFromPointer(clientX) {
+    if (state.phase !== 'IDLE' || (state.turn === 2 && state.gameMode === 'AI')) return;
+    const rect = sliderTrack.getBoundingClientRect();
+    const pad = 20;
+    const w = Math.max(1, rect.width - pad * 2);
+    const norm = Math.max(0, Math.min(1, (clientX - rect.left - pad) / w));
+    state.strikerX = norm * 2 - 1;
+    placeStrikerOnBaseline();
+  }
+
+  sliderTrack.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    sfx.init();
+    sliderTrack.setPointerCapture(e.pointerId);
+    isSlidingBaseline = true;
+    updateBaselineFromPointer(e.clientX);
+  });
+
+  sliderTrack.addEventListener('pointermove', (e) => {
+    if (!isSlidingBaseline) return;
+    updateBaselineFromPointer(e.clientX);
+  });
+
+  sliderTrack.addEventListener('pointerup', () => { isSlidingBaseline = false; });
+  sliderTrack.addEventListener('pointercancel', () => { isSlidingBaseline = false; });
+
+  document.getElementById('btn-pan').addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    sfx.tap();
+    setInputMode(state.inputMode === 'PAN' ? 'VIEW' : 'PAN');
+  });
+
+  document.getElementById('btn-mode-toggle').addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    if (state.phase !== 'IDLE') return;
+    sfx.tap();
+    setInputMode(state.inputMode === 'STRIKE' ? 'VIEW' : 'STRIKE');
+  });
+
+  const menuBackdrop = document.getElementById('menu-backdrop');
+
+  document.getElementById('btn-menu').addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    sfx.tap();
+    menuBackdrop.classList.add('open');
+  });
+
+  document.getElementById('btn-menu-close').addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    sfx.tap();
+    menuBackdrop.classList.remove('open');
+  });
+
+  menuBackdrop.addEventListener('pointerdown', (e) => {
+    if (e.target === menuBackdrop) {
+      sfx.tap();
+      menuBackdrop.classList.remove('open');
+    }
+  });
+
+  document.querySelectorAll('#seg-mode .seg-btn').forEach((btn) => {
+    btn.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      sfx.tap();
+      document.querySelectorAll('#seg-mode .seg-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.gameMode = btn.getAttribute('data-mode');
+      resetMatch();
+      menuBackdrop.classList.remove('open');
+    });
+  });
+
+  document.getElementById('btn-audio').addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    sfx.enabled = !sfx.enabled;
+    e.currentTarget.textContent = sfx.enabled ? 'SOUND: ON' : 'SOUND: OFF';
+    if (sfx.enabled) sfx.tap();
+  });
+
+  document.getElementById('btn-center-cam').addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    sfx.tap();
+    state.panTarget.set(0, 0.8, 0);
+    state.camYaw = 0;
+    state.camPitch = 0.64;
+    state.camZoom = 1.0;
+    menuBackdrop.classList.remove('open');
+  });
+
+  document.getElementById('btn-reset').addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    sfx.tap();
+    resetMatch();
+    menuBackdrop.classList.remove('open');
+  });
+
+  function resetMatch() {
+    clearTimeout(state.aiTimer);
+    PLOTS.forEach(p => { p.owner = 0; });
+    syncPlotVisuals();
+    buyBackdrop.classList.remove('open');
+    sellBackdrop.classList.remove('open');
+    state.buyForced = false;
+    state.turn = 1;
+    state.canBuyThisTurn = true;
+    state.debt = { 1: 0, 2: 0 };
+    state.pendingQueenFor = 0;
+    state.phase = 'IDLE';
+    state.strikerX = 0;
+    setInputMode('VIEW');
+    setupSingleTowerRack();
+    placeStrikerOnBaseline();
+    updateUI();
+    showToast('NEW MATCH // PLOTS RESET');
+  }
+
+  // =========================================================================
+  // 17. RESIZE, ANDROID GPU RECOVERY & MAIN RENDER LOOP
+  // =========================================================================
+  function handleResize() {
+    const w = Math.max(1, window.innerWidth);
+    const h = Math.max(1, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+    placeStrikerOnBaseline();
+    renderer.render(scene, camera);
+  }
+
+  window.addEventListener('resize', handleResize);
+  window.addEventListener('pageshow', handleResize);
+  window.addEventListener('focus', handleResize);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') handleResize();
+  });
+
+  setupSingleTowerRack();
+  syncPlotVisuals();
+  handleResize();
+  updateUI();
+
+  let lastTime = performance.now();
+  function animate(now) {
+    requestAnimationFrame(animate);
+    const dt = Math.min(0.05, Math.max(0.001, (now - lastTime) * 0.001));
+    lastTime = now;
+
+    if (state.inputMode === 'STRIKE' && state.phase === 'IDLE') {
+      updateAimGuide(now * 0.001);
+    }
+
+    stepPhysics(dt);
+    updateCamera(dt);
+    renderer.render(scene, camera);
+  }
+
+  requestAnimationFrame(animate);
+})();
+</script>
+</body>
+</html>
